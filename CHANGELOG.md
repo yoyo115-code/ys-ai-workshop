@@ -2,24 +2,29 @@
 
 All notable changes to Y's AI Workshop are documented in this file.
 
-## [v0.3.0] - Draft
+## [v0.3.0] - 2026-07-30
 
 ### Added
 
-- Resume Optimizer 工作区：从 Career Match 申请生成句子级建议，展示原句、建议句、原因、JD/简历证据与事实风险。
-- 建议接受、拒绝、手工编辑、单条重新生成、最近操作 Undo 和持久化事件审计。
-- `resume_suggestion_v1` 严格 Schema，以及原句/证据定位、新数字/技术名/专有名词风险检测和高风险接受阻断。
-- 不可变 ResumeVersion 完整文本快照，支持事务化生成、历史、确定性 Diff 和以新快照恢复。
-- Resume、Version、Suggestion 和 SuggestionEvent 四个 SQLite 表及 `0002_resume_versioning.sql`。
-- 58 项 mock Provider/静态交付自动化测试，包含建议状态机、事务回滚、用户隔离、版本操作、静态资源路径/MIME 和旧功能回归。
-- Phase 3.1 前端交付修复：CSS/JavaScript 使用相对路径、`config.js` 先于 `app.js` 延迟执行、SVG 内建尺寸与样式化 `file://` 预览提示。
-- 4 项可选 Playwright 浏览器测试，覆盖样式、认证面板、Career/Optimizer/AI Labs 导航、静态资源和控制台错误。
+- Evidence-grounded resume suggestions
+- Accept, reject, edit, regenerate and undo workflow
+- Immutable resume version history
+- Version diff and restore
+- Deterministic hallucination-risk checks
+- Browser delivery and static asset validation
 
-### Current limitations
+### Testing
 
-- 当前版本仅保留结构化文本和段落顺序，不保留 PDF/DOCX 版式。
-- 事实风险检测为保守启发式，需要用户最终核查。
-- Cover Letter、面试准备、分享链接和 OCR 仍未实现。
+- 58 automated tests
+- Browser acceptance validation
+- Static resource delivery tests
+
+### Known limitations
+
+- No layout-preserving DOCX/PDF export
+- No OCR
+- No public deployment
+- Playwright runtime remains optional
 
 ## [v0.2.0] - 2026-07-30
 

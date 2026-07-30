@@ -21,15 +21,24 @@
 
 ## v0.3 — Resume Optimizer & Versioning
 
-状态：已在 `feat/resume-optimizer-versioning` 实现，v0.3.0 尚未发布
+状态：已完成
 
 - 逐条简历建议与事实风险。
 - 接受、拒绝、编辑、单条重新生成和 Undo。
 - 不可变 ResumeVersion、版本比较和恢复。
 - 响应式 Resume Optimizer 工作区与持久化状态。
-- 53 项 mock Provider 自动化测试，包含事务回滚和旧接口回归。
+- 稳定的静态资源交付与桌面/小屏浏览器验收。
+- 58 项 mock Provider/静态交付自动化测试，包含事务回滚和旧接口回归。
 
 验收以 [Resume Optimizer 规划](features/RESUME_OPTIMIZER.md) 和 [ADR-003](decisions/ADR-003-versioned-resume-model.md) 为准。
+
+## Next — Layout-preserving export
+
+状态：未开始
+
+- 将结构化文本版本导出为 PDF/DOCX。
+- 保留可控的段落层级和基础版式。
+- 增加导出文件的内容、隐私和浏览器验收测试。
 
 ## Later — Application package
 
@@ -37,7 +46,6 @@
 
 - Cover Letter。
 - 面试准备与 STAR 框架。
-- PDF/DOCX 版式保真导出。
-- PostgreSQL、异步任务和浏览器端到端测试。
+- PostgreSQL、异步任务和浏览器测试 CI 集成。
 
 分享链接、OCR、新后台和新 AI Labs 当前不在 Phase 3 范围内。
