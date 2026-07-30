@@ -23,6 +23,8 @@ class ExternalLLMProvider:
             client = OpenAI(
                 api_key=self.settings.deepseek_api_key,
                 base_url="https://api.deepseek.com",
+                timeout=self.settings.llm_timeout_seconds,
+                max_retries=self.settings.llm_max_retries,
             )
             response = client.chat.completions.create(
                 model="deepseek-chat",
@@ -40,7 +42,11 @@ class ExternalLLMProvider:
         if provider == "anthropic":
             if not self.settings.anthropic_api_key:
                 raise HTTPException(status_code=503, detail="未配置 ANTHROPIC_API_KEY")
-            client = anthropic.Anthropic(api_key=self.settings.anthropic_api_key)
+            client = anthropic.Anthropic(
+                api_key=self.settings.anthropic_api_key,
+                timeout=self.settings.llm_timeout_seconds,
+                max_retries=self.settings.llm_max_retries,
+            )
             message = client.messages.create(
                 model="claude-3-5-sonnet-latest",
                 max_tokens=1800,

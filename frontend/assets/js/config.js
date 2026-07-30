@@ -24,6 +24,9 @@
         pdf: "/pdf-summary",
         csv: "/csv-preview"
       }),
+      career: Object.freeze({
+        applications: "/career/applications"
+      }),
       admin: Object.freeze({
         users: "/admin/users",
         logs: "/admin/logs"

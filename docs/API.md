@@ -54,6 +54,58 @@ Multipart：`file`，可选查询参数 `provider`。仅接受 `.csv`，单文�
 
 五个工具默认使用 `deepseek`，也可传 `anthropic`。响应兼容原型，同时包含 `reply` 和 `result`。
 
+## Career Match
+
+以下接口均要求当前用户 Session。用户只能查询或删除自己的申请。
+
+### `POST /career/applications`
+
+Multipart fields：
+
+- `resume_text`：简历文本；与 `resume_file` 二选一。
+- `resume_file`：可选 `.pdf` 或 `.docx` 文件，最大 20 MB；不保存原始文件。
+- `job_description`：必填的岗位 JD。
+- `company_name`、`job_title`、`location`：可选岗位元数据。
+- `language`：`zh`、`en` 或 `bilingual`，默认 `zh`。
+
+成功返回 `201` 和已保存申请详情。扫描 PDF 或无文本文件返回 `422`，响应包含稳定错误码和已保存的 `application_id`，历史记录会标为 `parse_failed`。
+
+### `GET /career/applications`
+
+返回当前用户最近 50 条申请摘要，按更新时间倒序排列。
+
+### `GET /career/applications/{application_id}`
+
+返回当前用户自己的申请、提取后的简历文本、解析状态和最近一次成功分析。其他用户的记录统一返回 `404`。
+
+### `POST /career/applications/{application_id}/analyze`
+
+可选 JSON：`{"retry": false}`。
+
+- 默认情况下，已有成功结果会直接复用，不再次调用模型。
+- `retry: true` 显式创建新一次分析。
+- 同一申请正在分析时返回 `409`。
+- API Key 未配置返回 `503`；Provider 失败或超时返回 `502 provider_failure`；非法 JSON 或证据不符合原文约束返回 `502 invalid_model_output`。
+
+成功响应包含：
+
+- `overall_alignment`：仅为 `strong_alignment`、`partial_alignment`、`significant_gaps`、`insufficient_evidence` 之一。
+- `covered_requirements`
+- `partially_covered_requirements`
+- `missing_requirements`
+- `uncertain_requirements`
+- `resume_expression_issues`
+- `qualification_risks`
+- `summary`
+- `analysis_limitations`
+- Provider、模型、Prompt 版本和创建时间。
+
+每个匹配项包含 JD 原文、简历证据、解释与证据充分程度。接口不返回百分比或录用概率。
+
+### `DELETE /career/applications/{application_id}`
+
+删除当前用户自己的申请及其简历来源、分析和匹配项，成功返回 `204`。
+
 ## Admin
 
 ### `GET /admin/users`
@@ -70,6 +122,8 @@ Multipart：`file`，可选查询参数 `provider`。仅接受 `.csv`，单文�
 - `401`：未登录或 Session 失效。
 - `403`：普通用户访问管理员接口。
 - `409`：用户名重复。
+- `409`：Career Match 正在分析，拒绝重复任务。
+- `422`：Career Match 输入、简历格式或文本提取无效。
 - `413`：上传超过 20 MB。
 - `502`：外部模型调用失败。
 - `503`：所选 Provider 的 API Key 未配置。
