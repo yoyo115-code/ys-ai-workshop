@@ -32,13 +32,17 @@
 
 验收以 [Resume Optimizer 规划](features/RESUME_OPTIMIZER.md) 和 [ADR-003](decisions/ADR-003-versioned-resume-model.md) 为准。
 
-## Next — Layout-preserving export
+## v0.4 — Resume Export & Delivery
 
-状态：未开始
+状态：Phase 4 开发中
 
-- 将结构化文本版本导出为 PDF/DOCX。
-- 保留可控的段落层级和基础版式。
-- 增加导出文件的内容、隐私和浏览器验收测试。
+- 从确认的 ResumeVersion 生成结构化预览。
+- `professional` 与 `minimal_ats` 两个稳定模板。
+- DOCX/PDF 生成、历史、下载、删除和文件安全。
+- 保留可控段落层级，不承诺还原原始文件像素级版式。
+- 增加内容一致性、隐私、路径安全和浏览器验收测试。
+
+设计以 [Resume Export 规划](features/RESUME_EXPORT.md) 和 [ADR-004](decisions/ADR-004-resume-document-rendering.md) 为准。
 
 ## Later — Application package
 
