@@ -1,6 +1,6 @@
 # ADR-003: Immutable Resume Versions
 
-- 状态：Accepted for Phase 3 implementation
+- 状态：Accepted and implemented in Phase 3
 - 日期：2026-07-30
 
 ## Context

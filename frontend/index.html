@@ -65,6 +65,19 @@
           </span>
         </button>
 
+        <button class="tab-btn" type="button" onclick="switchTab('optimizer')" data-tab="optimizer">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h4" />
+              <path d="m16 16 1.5 1.5L21 14" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">Resume Optimizer</span>
+            <span class="tab-copy">逐条建议与版本管理</span>
+          </span>
+        </button>
+
         <div class="nav-section-label nav-section-spaced">AI Labs</div>
         <button class="tab-btn" type="button" onclick="switchTab('resume')" data-tab="resume">
           <span class="tab-icon" aria-hidden="true">
@@ -214,6 +227,88 @@
                 <div class="empty-state">登录后可查看保存的申请。</div>
               </div>
             </aside>
+          </div>
+        </section>
+
+        <section id="panel-optimizer" class="panel" aria-labelledby="optimizer-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="optimizer-title">Resume Optimizer</h2>
+              <p class="panel-desc">将 Career Match 转化为可核查、可编辑的逐条建议，并生成不可变的岗位定制简历版本。</p>
+            </div>
+            <div class="panel-badge">Immutable versions · Prompt v1</div>
+          </div>
+
+          <div class="optimizer-toolbar">
+            <label class="optimizer-application-picker">申请记录
+              <select id="optimizer-application-select">
+                <option value="">请选择已保存的申请</option>
+              </select>
+            </label>
+            <button id="optimizer-load-btn" class="secondary-btn" type="button">打开工作区</button>
+            <button id="optimizer-generate-btn" class="action-btn" type="button">生成逐条建议</button>
+            <button id="optimizer-retry-btn" class="secondary-btn" type="button" hidden>Retry</button>
+          </div>
+
+          <div id="optimizer-message" class="career-message placeholder" role="status">请选择一条已完成 Career Match 的申请。</div>
+
+          <div class="optimizer-metrics">
+            <div class="metric"><span>公司 / 岗位</span><strong id="optimizer-job">-</strong></div>
+            <div class="metric"><span>当前版本</span><strong id="optimizer-version-number">-</strong></div>
+            <div class="metric"><span>已接受 / 编辑</span><strong id="optimizer-accepted-count">0</strong></div>
+            <div class="metric"><span>待处理</span><strong id="optimizer-pending-count">0</strong></div>
+          </div>
+
+          <div class="optimizer-layout">
+            <div class="optimizer-resume-column">
+              <section class="optimizer-card">
+                <div class="optimizer-card-heading">
+                  <div><span class="result-eyebrow">Current snapshot</span><h3>当前简历文本</h3></div>
+                  <select id="optimizer-version-select" aria-label="当前查看版本"></select>
+                </div>
+                <pre id="optimizer-resume-content" class="resume-content empty-state">打开申请后显示结构化文本版本。</pre>
+              </section>
+
+              <section class="optimizer-card">
+                <div class="optimizer-card-heading">
+                  <div><span class="result-eyebrow">Version history</span><h3>版本历史</h3></div>
+                  <button id="optimizer-refresh-versions-btn" class="secondary-btn" type="button">刷新</button>
+                </div>
+                <div class="version-compare-controls">
+                  <select id="optimizer-compare-from" aria-label="对比起始版本"></select>
+                  <span>对比</span>
+                  <select id="optimizer-compare-to" aria-label="对比目标版本"></select>
+                  <button id="optimizer-compare-btn" class="secondary-btn" type="button">查看 Diff</button>
+                </div>
+                <div id="optimizer-version-history" class="version-history-list">
+                  <div class="empty-state">暂无版本记录。</div>
+                </div>
+                <div id="optimizer-diff" class="optimizer-diff" hidden></div>
+                <p class="optimizer-export-note">当前保存和对比的是结构化文本版本；PDF/DOCX 版式保真导出尚未实现。</p>
+              </section>
+            </div>
+
+            <div class="optimizer-suggestion-column">
+              <section class="optimizer-card">
+                <div class="optimizer-card-heading optimizer-suggestion-heading">
+                  <div><span class="result-eyebrow">Review queue</span><h3>逐条建议</h3></div>
+                  <div class="suggestion-toolbar">
+                    <button id="optimizer-undo-btn" class="secondary-btn" type="button" disabled>Undo 最近操作</button>
+                    <button id="optimizer-create-version-btn" class="action-btn" type="button">生成新版本</button>
+                  </div>
+                </div>
+                <div id="optimizer-filters" class="optimizer-filters" aria-label="建议筛选">
+                  <button class="filter-btn active" type="button" data-optimizer-filter="all">All</button>
+                  <button class="filter-btn" type="button" data-optimizer-filter="pending">Pending</button>
+                  <button class="filter-btn" type="button" data-optimizer-filter="accepted">Accepted</button>
+                  <button class="filter-btn" type="button" data-optimizer-filter="rejected">Rejected</button>
+                  <button class="filter-btn" type="button" data-optimizer-filter="risk">Risk</button>
+                </div>
+                <div id="optimizer-suggestions" class="optimizer-suggestions">
+                  <div class="empty-state">生成建议后，可在这里逐条审核。</div>
+                </div>
+              </section>
+            </div>
           </div>
         </section>
 

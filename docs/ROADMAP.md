@@ -21,12 +21,13 @@
 
 ## v0.3 — Resume Optimizer & Versioning
 
-状态：规划中
+状态：已在 `feat/resume-optimizer-versioning` 实现，v0.3.0 尚未发布
 
 - 逐条简历建议与事实风险。
 - 接受、拒绝、编辑、单条重新生成和 Undo。
 - 不可变 ResumeVersion、版本比较和恢复。
 - 响应式 Resume Optimizer 工作区与持久化状态。
+- 53 项 mock Provider 自动化测试，包含事务回滚和旧接口回归。
 
 验收以 [Resume Optimizer 规划](features/RESUME_OPTIMIZER.md) 和 [ADR-003](decisions/ADR-003-versioned-resume-model.md) 为准。
 

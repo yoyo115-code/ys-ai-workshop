@@ -1,6 +1,6 @@
 # Resume Optimizer & Versioning
 
-状态：Phase 3 开发前规划
+状态：Phase 3 已实现，v0.3.0 待发布
 
 ## 用户痛点
 
@@ -89,7 +89,7 @@ Career Match 历史记录
 
 事件保存状态或建议文本的前后值，用于审计和最近操作 Undo。
 
-## API 规划
+## 已实现 API
 
 - `POST /career/applications/{application_id}/resume-suggestions/generate`
 - `GET /career/applications/{application_id}/resume-suggestions`
@@ -164,6 +164,8 @@ ResumeVersion 没有可变状态。创建、优化和恢复都追加新快照；
 - 同一原句的多条已接受建议不会静默重复替换。
 - 版本创建失败时数据库完全回滚。
 - 原有 Career Match 与五个 AI Labs 回归通过。
+
+实现验收：以上闭环均由 API 和原生前端提供；53 项自动化测试通过，未请求真实模型。
 
 ## 测试计划
 

@@ -27,6 +27,11 @@
       career: Object.freeze({
         applications: "/career/applications"
       }),
+      optimizer: Object.freeze({
+        suggestions: "/career/resume-suggestions",
+        resumes: "/career/resumes",
+        versions: "/career/resume-versions"
+      }),
       admin: Object.freeze({
         users: "/admin/users",
         logs: "/admin/logs"
