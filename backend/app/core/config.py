@@ -18,6 +18,14 @@ def _parse_origins(value: str) -> tuple[str, ...]:
     return tuple(origin.strip() for origin in value.split(",") if origin.strip())
 
 
+def _positive_int(value: str, default: int) -> int:
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed > 0 else default
+
+
 @dataclass(frozen=True)
 class Settings:
     deepseek_api_key: str = ""
@@ -30,6 +38,8 @@ class Settings:
     schema_path: Path = SCHEMA_PATH
     max_upload_bytes: int = 20 * 1024 * 1024
     session_hours: int = 12
+    llm_timeout_seconds: int = 45
+    llm_max_retries: int = 2
 
     @property
     def database_path(self) -> Path:
@@ -54,4 +64,8 @@ def get_settings() -> Settings:
         database_url=os.getenv("DATABASE_URL", "sqlite:///./platform.db").strip()
         or "sqlite:///./platform.db",
         cors_origins=_parse_origins(os.getenv("CORS_ORIGINS", "")),
+        llm_timeout_seconds=_positive_int(
+            os.getenv("LLM_TIMEOUT_SECONDS", "45"), 45
+        ),
+        llm_max_retries=_positive_int(os.getenv("LLM_MAX_RETRIES", "2"), 2),
     )

@@ -1,8 +1,9 @@
-const TABS = ["resume", "copywrite", "translate", "pdf", "csv", "admin"];
+const TABS = ["career", "resume", "copywrite", "translate", "pdf", "csv", "admin"];
 const AUTH_TOKEN_KEY = "nova_auth_token";
 const API_CONFIG = window.YS_AI_CONFIG;
 let currentUser = null;
 let registrationMode = false;
+let currentCareerApplicationId = null;
 
 function apiUrl(path) {
   return `${API_CONFIG.apiBaseUrl}${path}`;
@@ -48,6 +49,7 @@ function switchTab(name) {
   });
 
   if (name === "admin") refreshAdminDashboard();
+  if (name === "career") refreshCareerHistory();
 }
 
 function onFileChosen(type) {
@@ -132,7 +134,9 @@ function formatError(response, payload) {
 
   if (payload && typeof payload === "object") {
     const detail = payload.detail || payload.message || payload.error;
-    message = typeof detail === "string" ? detail : JSON.stringify(detail || payload);
+    message = typeof detail === "string"
+      ? detail
+      : (detail?.message || JSON.stringify(detail || payload));
   } else if (typeof payload === "string") {
     message = payload;
   }
@@ -262,7 +266,7 @@ function updateAuthUI() {
     document.getElementById("current-user").textContent = `${currentUser.display_name} (${currentUser.username})`;
     document.getElementById("current-role").textContent = currentUser.role === "admin" ? "管理员" : "普通用户";
   } else if (document.getElementById("panel-admin").classList.contains("active")) {
-    switchTab("resume");
+    switchTab("career");
   }
 }
 
@@ -314,6 +318,7 @@ async function submitAuth() {
     currentUser = data.user;
     setRegistrationMode(false);
     updateAuthUI();
+    refreshCareerHistory();
   } catch (error) {
     message.textContent = error.message;
   } finally {
@@ -331,6 +336,7 @@ async function logout() {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     currentUser = null;
     updateAuthUI();
+    renderCareerHistory([]);
   }
 }
 
@@ -350,6 +356,280 @@ async function loadCurrentUser() {
     currentUser = null;
   }
   updateAuthUI();
+  if (currentUser) refreshCareerHistory();
+}
+
+const CAREER_GROUPS = [
+  ["covered_requirements", "已覆盖能力"],
+  ["partially_covered_requirements", "部分覆盖"],
+  ["missing_requirements", "缺失能力"],
+  ["uncertain_requirements", "信息不足"],
+  ["resume_expression_issues", "表达问题"],
+  ["qualification_risks", "岗位风险"]
+];
+
+const ALIGNMENT_LABELS = {
+  strong_alignment: "高度匹配",
+  partial_alignment: "部分匹配",
+  significant_gaps: "存在显著差距",
+  insufficient_evidence: "证据不足"
+};
+
+const CAREER_STATUS_LABELS = {
+  ready: "待分析",
+  analyzing: "分析中",
+  completed: "已完成",
+  analysis_failed: "分析失败",
+  parse_failed: "文件解析失败"
+};
+
+function careerApplicationUrl(applicationId = "", suffix = "") {
+  const base = API_CONFIG.endpoints.career.applications;
+  return `${base}${applicationId ? `/${applicationId}` : ""}${suffix}`;
+}
+
+function setCareerMessage(message, state = "placeholder") {
+  const target = document.getElementById("career-message");
+  target.className = `career-message ${state}`;
+  target.textContent = message;
+}
+
+function clearCareerFile() {
+  document.getElementById("career-resume-file").value = "";
+  document.getElementById("career-file-name").textContent = "尚未选择文件";
+  document.getElementById("career-clear-file").hidden = true;
+}
+
+function onCareerFileChosen() {
+  const input = document.getElementById("career-resume-file");
+  const file = input.files[0];
+  if (!file) {
+    clearCareerFile();
+    return;
+  }
+  const fileName = file.name.toLowerCase();
+  if (!fileName.endsWith(".pdf") && !fileName.endsWith(".docx")) {
+    clearCareerFile();
+    setCareerMessage("文件类型不正确，请上传 PDF 或 DOCX 简历。", "error");
+    return;
+  }
+  document.getElementById("career-resume-text").value = "";
+  document.getElementById("career-file-name").textContent = `已选择：${file.name}`;
+  document.getElementById("career-clear-file").hidden = false;
+  setCareerMessage("简历文件已就绪。文件只用于提取文字，不保存原文件。", "placeholder");
+}
+
+async function submitCareerMatch() {
+  const button = document.getElementById("career-analyze-btn");
+  const resumeText = document.getElementById("career-resume-text").value.trim();
+  const resumeFile = document.getElementById("career-resume-file").files[0];
+  const jobDescription = document.getElementById("career-jd").value.trim();
+  if (!currentUser) {
+    setCareerMessage("请先登录，再保存和分析申请。", "error");
+    return;
+  }
+  if (!resumeText && !resumeFile) {
+    setCareerMessage("请粘贴简历文本或上传 PDF / DOCX 简历。", "error");
+    return;
+  }
+  if (resumeText && resumeFile) {
+    setCareerMessage("简历文本和文件只能选择一种。", "error");
+    return;
+  }
+  if (!jobDescription) {
+    setCareerMessage("请粘贴目标岗位 JD。", "error");
+    return;
+  }
+
+  const form = new FormData();
+  form.append("resume_text", resumeText);
+  form.append("job_description", jobDescription);
+  form.append("company_name", document.getElementById("career-company").value.trim());
+  form.append("job_title", document.getElementById("career-job-title").value.trim());
+  form.append("location", document.getElementById("career-location").value.trim());
+  form.append("language", document.getElementById("career-language").value);
+  if (resumeFile) form.append("resume_file", resumeFile);
+
+  setButtonLoading(button, true);
+  document.getElementById("career-result").hidden = true;
+  setCareerMessage("正在保存申请并解析简历…", "loading");
+  try {
+    const response = await fetch(apiUrl(careerApplicationUrl()), {
+      method: "POST",
+      headers: authHeaders(),
+      body: form
+    });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) {
+      if (payload?.detail?.application_id) currentCareerApplicationId = payload.detail.application_id;
+      throw new Error(formatError(response, payload));
+    }
+    currentCareerApplicationId = payload.id;
+    await refreshCareerHistory();
+    await analyzeCareerApplication(payload.id, false);
+  } catch (error) {
+    setCareerMessage(error.message || "申请创建失败，请检查输入后重试。", "error");
+    await refreshCareerHistory();
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function analyzeCareerApplication(applicationId, retry = false) {
+  currentCareerApplicationId = applicationId;
+  setCareerMessage(retry ? "正在重新分析，请稍候…" : "申请已保存，正在生成证据化匹配分析…", "loading");
+  try {
+    const response = await fetch(apiUrl(careerApplicationUrl(applicationId, "/analyze")), {
+      method: "POST",
+      headers: authHeaders(true),
+      body: JSON.stringify({ retry })
+    });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    renderCareerAnalysis(payload);
+    setCareerMessage("分析已完成并保存。刷新或重新登录后仍可从右侧历史记录打开。", "success");
+    await refreshCareerHistory();
+  } catch (error) {
+    document.getElementById("career-result").hidden = true;
+    setCareerMessage(`${error.message || "模型调用失败。"}\n可以点击“重新分析”再次尝试。`, "error");
+    document.getElementById("career-result").hidden = false;
+    document.getElementById("career-overall").textContent = "分析未完成";
+    document.getElementById("career-summary").textContent = "原始简历和 JD 已保存，失败不会丢失输入。";
+    document.getElementById("career-result-groups").innerHTML = "";
+    document.getElementById("career-limitations").textContent = "模型调用或结构校验失败，请重试。";
+    await refreshCareerHistory();
+  }
+}
+
+function renderCareerAnalysis(analysis) {
+  document.getElementById("career-result").hidden = false;
+  document.getElementById("career-overall").textContent = ALIGNMENT_LABELS[analysis.overall_alignment] || analysis.overall_alignment;
+  document.getElementById("career-summary").textContent = analysis.summary;
+  document.getElementById("career-result-meta").textContent = `${analysis.model} · ${analysis.prompt_version} · ${formatTime(analysis.created_at)}`;
+  document.getElementById("career-result-groups").innerHTML = CAREER_GROUPS.map(([key, title]) => {
+    const items = Array.isArray(analysis[key]) ? analysis[key] : [];
+    const content = items.length
+      ? items.map(item => `
+        <article class="match-item confidence-${escapeHtml(item.confidence_level)}">
+          <div><span class="match-label">JD 原始要求</span><p>${escapeHtml(item.jd_requirement)}</p></div>
+          <div><span class="match-label">简历证据</span><p>${escapeHtml(item.resume_evidence || "无简历证据")}</p></div>
+          <div><span class="match-label">解释</span><p>${escapeHtml(item.explanation)}</p></div>
+          <span class="confidence-badge">证据：${escapeHtml(item.confidence_level)}</span>
+        </article>`).join("")
+      : '<div class="empty-state">本次分析未发现此类项目。</div>';
+    return `<section class="result-group"><h3>${title}<span>${items.length}</span></h3><div class="match-items">${content}</div></section>`;
+  }).join("");
+  const limitations = analysis.analysis_limitations || [];
+  document.getElementById("career-limitations").innerHTML = limitations.length
+    ? `<ul>${limitations.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+    : "暂无额外限制。";
+}
+
+function renderCareerHistory(applications) {
+  const container = document.getElementById("career-history");
+  if (!currentUser) {
+    container.innerHTML = '<div class="empty-state">登录后可查看保存的申请。</div>';
+    return;
+  }
+  if (!applications.length) {
+    container.innerHTML = '<div class="empty-state">还没有申请记录。完成左侧输入后，第一份记录会显示在这里。</div>';
+    return;
+  }
+  container.innerHTML = applications.map(application => `
+    <article class="history-item ${application.id === currentCareerApplicationId ? "active" : ""}">
+      <button class="history-open" type="button" onclick="openCareerApplication(${application.id})">
+        <strong>${escapeHtml(application.company_name || "未填写公司")}</strong>
+        <span>${escapeHtml(application.job_title || "未填写岗位")}</span>
+        <small>${escapeHtml(formatTime(application.created_at))}</small>
+        <em class="history-status status-${escapeHtml(application.status)}">${escapeHtml(CAREER_STATUS_LABELS[application.status] || application.status)}</em>
+      </button>
+      <button class="history-delete" type="button" aria-label="删除申请" onclick="deleteCareerApplication(${application.id})">删除</button>
+    </article>`).join("");
+}
+
+async function refreshCareerHistory() {
+  if (!currentUser) {
+    renderCareerHistory([]);
+    return;
+  }
+  const container = document.getElementById("career-history");
+  container.innerHTML = '<div class="empty-state">正在加载历史记录…</div>';
+  try {
+    const response = await fetch(apiUrl(careerApplicationUrl()), { headers: authHeaders() });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    renderCareerHistory(payload);
+  } catch (error) {
+    container.innerHTML = `<div class="empty-state error-state">${escapeHtml(error.message || "历史记录加载失败")}</div>`;
+  }
+}
+
+async function openCareerApplication(applicationId) {
+  try {
+    const response = await fetch(apiUrl(careerApplicationUrl(applicationId)), { headers: authHeaders() });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    currentCareerApplicationId = payload.id;
+    document.getElementById("career-company").value = payload.company_name;
+    document.getElementById("career-job-title").value = payload.job_title;
+    document.getElementById("career-location").value = payload.location;
+    document.getElementById("career-language").value = payload.language;
+    document.getElementById("career-jd").value = payload.job_description;
+    document.getElementById("career-resume-text").value = payload.resume_source.source_type === "text" ? payload.resume_source.extracted_text : "";
+    clearCareerFile();
+    if (payload.resume_source.original_filename) {
+      document.getElementById("career-file-name").textContent = `已保存文本来源：${payload.resume_source.original_filename}`;
+    }
+    if (payload.latest_analysis) {
+      renderCareerAnalysis(payload.latest_analysis);
+      setCareerMessage(
+        payload.latest_analysis_error_code
+          ? `最近一次重试未完成（${payload.latest_analysis_error_code}），当前展示上一次成功分析。`
+          : "已打开保存的匹配分析。",
+        payload.latest_analysis_error_code ? "error" : "success"
+      );
+    } else {
+      const reason = payload.resume_source.parse_error || payload.latest_analysis_error_code;
+      const canAnalyze = payload.resume_source.parse_status === "parsed";
+      document.getElementById("career-result").hidden = !canAnalyze;
+      if (canAnalyze) {
+        document.getElementById("career-overall").textContent = payload.status === "analysis_failed" ? "分析未完成" : "等待分析";
+        document.getElementById("career-summary").textContent = "申请输入已保存，可以重新发起匹配分析。";
+        document.getElementById("career-result-meta").textContent = "";
+        document.getElementById("career-result-groups").innerHTML = "";
+        document.getElementById("career-limitations").textContent = reason || "尚未生成分析结果。";
+      }
+      setCareerMessage(reason ? `此记录未完成：${reason}` : "申请已保存，尚未完成分析。", reason ? "error" : "placeholder");
+    }
+    renderCareerHistory(await fetchCareerHistory());
+  } catch (error) {
+    setCareerMessage(error.message || "申请详情加载失败。", "error");
+  }
+}
+
+async function fetchCareerHistory() {
+  const response = await fetch(apiUrl(careerApplicationUrl()), { headers: authHeaders() });
+  if (!response.ok) return [];
+  return response.json();
+}
+
+async function deleteCareerApplication(applicationId) {
+  if (!window.confirm("确认删除这条申请及其分析结果？")) return;
+  try {
+    const response = await fetch(apiUrl(careerApplicationUrl(applicationId)), {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+    if (!response.ok) throw new Error("删除失败，请稍后重试。");
+    if (currentCareerApplicationId === applicationId) {
+      currentCareerApplicationId = null;
+      document.getElementById("career-result").hidden = true;
+      setCareerMessage("申请已删除。", "success");
+    }
+    await refreshCareerHistory();
+  } catch (error) {
+    setCareerMessage(error.message, "error");
+  }
 }
 
 async function refreshAdminDashboard() {
@@ -382,6 +662,16 @@ document.getElementById("login-btn").addEventListener("click", submitAuth);
 document.getElementById("auth-switch-btn").addEventListener("click", () => setRegistrationMode(!registrationMode));
 document.getElementById("logout-btn").addEventListener("click", logout);
 document.getElementById("refresh-admin-btn").addEventListener("click", refreshAdminDashboard);
+document.getElementById("career-analyze-btn").addEventListener("click", submitCareerMatch);
+document.getElementById("career-resume-file").addEventListener("change", onCareerFileChosen);
+document.getElementById("career-clear-file").addEventListener("click", clearCareerFile);
+document.getElementById("career-refresh-btn").addEventListener("click", refreshCareerHistory);
+document.getElementById("career-retry-btn").addEventListener("click", () => {
+  if (currentCareerApplicationId) analyzeCareerApplication(currentCareerApplicationId, true);
+});
+document.getElementById("career-resume-text").addEventListener("input", (event) => {
+  if (event.target.value.trim()) clearCareerFile();
+});
 document.getElementById("password").addEventListener("keydown", (event) => {
   if (event.key === "Enter") submitAuth();
 });
