@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Y's AI Workshop</title>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182033;
+      --muted: #6b7488;
+      --soft: #8a94a9;
+      --line: #e2e8f0;
+      --line-strong: #cbd5e1;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --surface-tint: #f5f7ff;
+      --brand: #5048e5;
+      --brand-2: #7c3aed;
+      --brand-3: #2563eb;
+      --success: #10b981;
+      --danger: #dc2626;
+      --danger-soft: #fff1f2;
+      --shadow: 0 28px 70px rgba(30, 41, 59, 0.10);
+      --shadow-soft: 0 12px 34px rgba(30, 41, 59, 0.07);
+      --radius: 20px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--ink);
+      font-family:
+        Inter,
+        "PingFang SC",
+        "Microsoft YaHei",
+        Arial,
+        sans-serif;
+      background:
+        linear-gradient(135deg, rgba(80, 72, 229, 0.10), transparent 32%),
+        linear-gradient(225deg, rgba(37, 99, 235, 0.09), transparent 34%),
+        linear-gradient(180deg, #fbfcff 0%, #eef3ff 100%);
+    }
+
+    button,
+    textarea,
+    input {
+      font: inherit;
+    }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #app {
+      width: min(100%, 1320px);
+      margin: 0 auto;
+      padding: 36px 24px 44px;
+    }
+
+    #header {
+      position: relative;
+      overflow: hidden;
+      min-height: 264px;
+      padding: 42px 44px 46px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 332px);
+      gap: 36px;
+      align-items: start;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: var(--radius);
+      color: #ffffff;
+      background:
+        linear-gradient(135deg, #3037c8 0%, #4d46dd 54%, #7438d8 100%);
+      box-shadow: var(--shadow);
+      isolation: isolate;
+    }
+
+    #header::after {
+      content: "";
+      position: absolute;
+      right: -104px;
+      bottom: -150px;
+      width: 390px;
+      height: 390px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.11);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .brand-area {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    .brand-logo {
+      width: 62px;
+      height: 62px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.38);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 16px 32px rgba(24, 32, 51, 0.18);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand-logo svg {
+      width: 32px;
+      height: 32px;
+      display: block;
+    }
+
+    .brand-kicker {
+      margin-bottom: 9px;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .brand-text h1 {
+      font-size: clamp(32px, 4.2vw, 50px);
+      line-height: 1.14;
+      letter-spacing: 0;
+    }
+
+    .brand-text p {
+      max-width: 720px;
+      margin-top: 18px;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 16px;
+      line-height: 1.8;
+    }
+
+    .service-status {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      padding: 18px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 16px 34px rgba(24, 32, 51, 0.14);
+    }
+
+    .status-label {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #8af0bc;
+      box-shadow: 0 0 0 5px rgba(138, 240, 188, 0.18);
+    }
+
+    .status-meta {
+      margin-top: 8px;
+      color: rgba(255, 255, 255, 0.70);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .workspace-shell {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: 282px minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    #tab-nav {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border: 1px solid rgba(226, 232, 240, 0.82);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 12px 30px rgba(30, 41, 59, 0.05);
+      backdrop-filter: blur(14px);
+    }
+
+    .tab-btn {
+      position: relative;
+      width: 100%;
+      min-height: 66px;
+      padding: 12px 12px 12px 14px;
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      cursor: pointer;
+      transition:
+        color 0.18s ease,
+        background 0.18s ease,
+        border-color 0.18s ease,
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+    }
+
+    .tab-btn:hover {
+      border-color: #d8ddff;
+      background: #f7f8ff;
+      color: var(--brand);
+    }
+
+    .tab-btn:focus-visible {
+      outline: 3px solid rgba(80, 72, 229, 0.20);
+      outline-offset: 2px;
+    }
+
+    .tab-btn.active {
+      border-color: rgba(80, 72, 229, 0.18);
+      background: linear-gradient(135deg, rgba(80, 72, 229, 0.10), rgba(37, 99, 235, 0.07));
+      color: var(--brand);
+      box-shadow: 0 8px 20px rgba(80, 72, 229, 0.08);
+    }
+
+    .tab-icon {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      color: var(--brand);
+      background: #eef2ff;
+    }
+
+    .tab-icon svg {
+      width: 19px;
+      height: 19px;
+      stroke-width: 2;
+    }
+
+    .tab-title {
+      display: block;
+      color: currentColor;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .tab-copy {
+      display: block;
+      margin-top: 4px;
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .panel-stack {
+      min-width: 0;
+      border: 1px solid rgba(226, 232, 240, 0.86);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.90);
+      box-shadow: 0 18px 42px rgba(30, 41, 59, 0.07);
+      backdrop-filter: blur(14px);
+    }
+
+    .panel {
+      display: none;
+      padding: 32px;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .panel-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 24px;
+    }
+
+    .panel-heading h2 {
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .panel-desc {
+      max-width: 660px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .panel-badge {
+      padding: 8px 11px;
+      border: 1px solid #dde4f0;
+      border-radius: 999px;
+      color: #475569;
+      background: #f8fafc;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .work-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .input-card,
+    .output-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .card-label {
+      min-height: 46px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      color: #334155;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .card-hint {
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 216px;
+      padding: 18px;
+      display: block;
+      border: 0;
+      border-radius: 0 0 16px 16px;
+      outline: none;
+      resize: vertical;
+      background: #ffffff;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.75;
+      transition:
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+    }
+
+    textarea::placeholder {
+      color: #98a2b3;
+    }
+
+    .input-card:focus-within {
+      border-color: rgba(80, 72, 229, 0.48);
+      box-shadow: 0 0 0 4px rgba(80, 72, 229, 0.10);
+    }
+
+    textarea:focus {
+      background: #fff;
+    }
+
+    .upload-area {
+      min-height: 214px;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 0 0 16px 16px;
+      background:
+        linear-gradient(180deg, #fbfdff 0%, #f8faff 100%);
+      cursor: pointer;
+      transition:
+        background 0.18s ease,
+        box-shadow 0.18s ease;
+    }
+
+    .upload-area:hover {
+      background: #f5f7ff;
+    }
+
+    .upload-area:focus-within {
+      box-shadow: inset 0 0 0 4px rgba(80, 72, 229, 0.10);
+    }
+
+    .upload-area input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .upload-content {
+      width: min(100%, 430px);
+      min-height: 148px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border: 1.5px dashed #cbd5e1;
+      border-radius: 15px;
+      text-align: center;
+      transition:
+        border-color 0.18s ease,
+        transform 0.18s ease,
+        background 0.18s ease;
+    }
+
+    .upload-area:hover .upload-content {
+      transform: translateY(-1px);
+      border-color: #756df0;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .upload-icon {
+      width: 46px;
+      height: 46px;
+      margin-bottom: 13px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: var(--brand);
+      background: #eef2ff;
+    }
+
+    .upload-icon svg {
+      width: 23px;
+      height: 23px;
+    }
+
+    .upload-hint {
+      color: #475569;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.6;
+    }
+
+    .upload-hint em {
+      color: var(--brand);
+      font-style: normal;
+    }
+
+    .file-chosen {
+      width: 100%;
+      margin-top: 11px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .action-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .action-btn {
+      min-width: 142px;
+      min-height: 44px;
+      padding: 12px 20px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 9px;
+      border: 0;
+      border-radius: 12px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #315eea 0%, #554ce7 56%, #7338dc 100%);
+      box-shadow: 0 12px 24px rgba(80, 72, 229, 0.22);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        opacity 0.18s ease,
+        filter 0.18s ease;
+    }
+
+    .action-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 15px 28px rgba(80, 72, 229, 0.28);
+      filter: saturate(1.04);
+    }
+
+    .action-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .action-btn:focus-visible {
+      outline: 3px solid rgba(80, 72, 229, 0.22);
+      outline-offset: 3px;
+    }
+
+    .action-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .output-card {
+      overflow: hidden;
+    }
+
+    .output-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .output-title::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+    }
+
+    .output-area {
+      min-height: 188px;
+      max-height: 430px;
+      overflow-y: auto;
+      padding: 17px 18px;
+      color: #334155;
+      background:
+        linear-gradient(180deg, #fbfcff 0%, #f8fafc 100%);
+      font-size: 14px;
+      line-height: 1.85;
+      white-space: pre-wrap;
+      word-break: break-word;
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .output-area.placeholder {
+      color: #8b95a6;
+    }
+
+    .output-area.error {
+      color: #b91c1c;
+      background: var(--danger-soft);
+    }
+
+    .output-card.has-error {
+      border-color: #fecaca;
+    }
+
+    .output-card.has-error .output-title::before {
+      background: var(--danger);
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+    }
+
+
+    [hidden] { display: none !important; }
+
+    .auth-panel { margin-top: 14px; display: grid; gap: 10px; }
+    .auth-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .auth-fields input {
+      width: 100%; min-width: 0; border: 1px solid rgba(255,255,255,.24);
+      background: rgba(255,255,255,.1); color: #fff; padding: 10px 11px;
+      border-radius: 6px; outline: none; letter-spacing: 0;
+    }
+    .auth-fields input::placeholder { color: rgba(255,255,255,.6); }
+    .auth-button {
+      border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.14);
+      color: #fff; border-radius: 6px; padding: 9px 14px; cursor: pointer; font-weight: 700;
+    }
+    .auth-button:hover { background: rgba(255,255,255,.22); }
+    .auth-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .auth-switch-button { background: transparent; border-color: transparent; padding-inline: 4px; }
+    .auth-switch-button:hover { background: rgba(255,255,255,.1); }
+    .auth-message { color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.5; }
+    .user-summary { margin-top: 12px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .user-summary strong { display: block; margin-bottom: 2px; }
+    .admin-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+    .metric { border: 1px solid var(--line); padding: 14px; border-radius: 6px; background: #fff; }
+    .metric span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .metric strong { font-size: 25px; color: var(--ink); }
+    .data-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 12px; }
+    .data-table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 13px; }
+    .data-table th, .data-table td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .data-table th { background: #f6f7f9; color: var(--muted); font-weight: 700; }
+    .data-table tr:last-child td { border-bottom: 0; }
+    .status-success { color: #1f7a48; font-weight: 700; }
+    .status-error { color: #b42318; font-weight: 700; }
+
+    @media (max-width: 980px) {
+      #app {
+        padding: 18px 12px 30px;
+      }
+
+      #header {
+        grid-template-columns: 1fr;
+        min-height: auto;
+        padding: 28px;
+        gap: 24px;
+      }
+
+      .service-status {
+        width: 100%;
+      }
+
+      .auth-fields, .admin-summary-grid { grid-template-columns: 1fr; }
+
+      .workspace-shell {
+        margin-top: 20px;
+        grid-template-columns: 1fr;
+      }
+
+      #tab-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 8px;
+        scrollbar-width: thin;
+      }
+
+      .tab-btn {
+        flex: 0 0 178px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      #app {
+        padding-inline: 10px;
+      }
+
+      #header {
+        border-radius: 17px;
+      }
+
+      .brand-area {
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .brand-logo {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+      }
+
+      .panel-stack {
+        border-radius: 17px;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .panel-heading {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-badge {
+        width: fit-content;
+      }
+
+      .card-label {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      textarea {
+        min-height: 190px;
+      }
+
+      .upload-area {
+        padding: 16px;
+      }
+
+      .action-row {
+        justify-content: stretch;
+      }
+
+      .action-btn {
+        width: 100%;
+      }
+
+      .output-area {
+        max-height: 360px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <header id="header">
+      <div class="brand-area">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" role="img">
+            <path d="M16 3L19.2 11.2L28 13.4L20.8 18.8L21.4 28L16 20.8L10.6 28L11.2 18.8L4 13.4L12.8 11.2L16 3Z" fill="rgba(255,255,255,0.94)" />
+            <path d="M16 9.5L17.6 13.7L22 14.8L18.4 17.4L18.7 22L16 18.4L13.3 22L13.6 17.4L10 14.8L14.4 13.7L16 9.5Z" fill="#5048e5" />
+          </svg>
+        </div>
+
+        <div class="brand-text">
+          <div class="brand-kicker">Y's AI Workshop</div>
+          <h1>Y's AI Workshop</h1>
+          <p>AI-powered career and productivity workspace</p>
+        </div>
+      </div>
+
+      <aside class="service-status" aria-label="账户状态">
+        <div class="status-label"><span class="status-dot"></span><span id="status-text">请登录后使用</span></div>
+        <div class="status-meta">FastAPI 后端 · SQLite 用户数据</div>
+        <div id="login-panel" class="auth-panel">
+          <div class="auth-fields">
+            <input id="display-name" autocomplete="name" placeholder="姓名" aria-label="姓名" hidden>
+            <input id="username" autocomplete="username" placeholder="账号" aria-label="账号">
+            <input id="password" type="password" autocomplete="current-password" placeholder="密码" aria-label="密码">
+            <input id="confirm-password" type="password" autocomplete="new-password" placeholder="确认密码" aria-label="确认密码" hidden>
+          </div>
+          <div class="auth-actions">
+            <button id="login-btn" class="auth-button" type="button">登录</button>
+            <button id="auth-switch-btn" class="auth-button auth-switch-button" type="button">注册新账号</button>
+          </div>
+          <div id="auth-message" class="auth-message">请输入账号密码，或注册新账号。</div>
+        </div>
+        <div id="user-panel" class="user-summary" hidden>
+          <div><strong id="current-user">-</strong><span id="current-role" class="auth-message">-</span></div>
+          <button id="logout-btn" class="auth-button" type="button">退出</button>
+        </div>
+      </aside>
+    </header>
+
+    <div class="workspace-shell">
+      <nav id="tab-nav" aria-label="功能导航">
+        <button class="tab-btn active" type="button" onclick="switchTab('resume')" data-tab="resume">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M8 6h8M8 10h8M8 14h5" />
+              <path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">简历优化</span>
+            <span class="tab-copy">提炼经历与表达亮点</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('copywrite')" data-tab="copywrite">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M4 19.5V20h.5L15.8 8.7l-1.5-1.5L4 17.5v2Z" />
+              <path d="M13.6 5.9l1.5-1.5a2.1 2.1 0 0 1 3 3l-1.5 1.5" />
+              <path d="M5 6h5M5 10h3" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">文案生成</span>
+            <span class="tab-copy">快速生成场景短文案</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('translate')" data-tab="translate">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M4 5h9M9 3v2M7 5c.7 3.2 2.6 5.7 5.5 7.5" />
+              <path d="M11 5c-.5 2.7-2.2 5.2-5 7" />
+              <path d="M14 21l4-10 4 10M15.3 18h5.4" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">翻译助手</span>
+            <span class="tab-copy">中英文互译与润色</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('pdf')" data-tab="pdf">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+              <path d="M14 3v5h5M8 13h8M8 17h5" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">PDF 摘要</span>
+            <span class="tab-copy">上传文档提取要点</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('csv')" data-tab="csv">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+              <path d="M4 9h16M4 15h16M10 9v12M16 9v12" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">CSV 预览</span>
+            <span class="tab-copy">理解表格结构与字段</span>
+          </span>
+        </button>
+
+
+        <button class="tab-btn" id="admin-tab" type="button" onclick="switchTab('admin')" data-tab="admin" hidden>
+          <span class="tab-icon" aria-hidden="true">⌁</span>
+          <span><span class="tab-title">后台数据</span><span class="tab-copy">账号使用统计与明细</span></span>
+        </button>
+      </nav>
+
+      <main class="panel-stack">
+        <section id="panel-resume" class="panel active" aria-labelledby="resume-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="resume-title">简历优化</h2>
+              <p class="panel-desc">粘贴简历片段或项目经历，AI 将帮助你强化结果表达、行动动词和岗位匹配度。</p>
+            </div>
+            <div class="panel-badge">JSON 字段：text</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>输入内容</span>
+                <span class="card-hint">建议包含岗位、职责和成果</span>
+              </div>
+              <textarea id="resume-input" placeholder="例如：负责公司后端开发工作，参与接口设计和数据库维护…"></textarea>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="resume-btn" type="button" onclick="submitText('resume')">开始优化</button>
+            </div>
+
+            <div class="output-card" id="resume-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="resume-output" class="output-area placeholder">优化建议将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-copywrite" class="panel" aria-labelledby="copywrite-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="copywrite-title">文案生成</h2>
+              <p class="panel-desc">描述产品、受众、渠道或语气，AI 将生成适合营销、社媒或活动场景的短文案。</p>
+            </div>
+            <div class="panel-badge">JSON 字段：scene</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>场景描述</span>
+                <span class="card-hint">说清产品、卖点和语气</span>
+              </div>
+              <textarea id="copywrite-input" placeholder="例如：给一款低糖夏日奶茶写朋友圈文案，语气清爽、有记忆点…"></textarea>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="copywrite-btn" type="button" onclick="submitText('copywrite')">生成文案</button>
+            </div>
+
+            <div class="output-card" id="copywrite-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="copywrite-output" class="output-area placeholder">生成的文案将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-translate" class="panel" aria-labelledby="translate-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="translate-title">翻译助手</h2>
+              <p class="panel-desc">输入中文或英文，AI 会自动识别翻译方向，并尽量保持自然、准确和适合上下文的表达。</p>
+            </div>
+            <div class="panel-badge">JSON 字段：text</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>待翻译文本</span>
+                <span class="card-hint">支持长文本滚动输入</span>
+              </div>
+              <textarea id="translate-input" placeholder="输入需要翻译或润色的文本…"></textarea>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="translate-btn" type="button" onclick="submitText('translate')">翻译 / 润色</button>
+            </div>
+
+            <div class="output-card" id="translate-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="translate-output" class="output-area placeholder">翻译结果将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-pdf" class="panel" aria-labelledby="pdf-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="pdf-title">PDF 摘要</h2>
+              <p class="panel-desc">上传 PDF 文件，AI 将读取文档内容并生成核心摘要，适合快速理解资料和报告。</p>
+            </div>
+            <div class="panel-badge">FormData 字段：file</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>上传文件</span>
+                <span class="card-hint">仅支持 .pdf</span>
+              </div>
+              <label class="upload-area" for="pdf-file">
+                <input type="file" id="pdf-file" accept=".pdf,application/pdf" onchange="onFileChosen('pdf')" />
+                <span class="upload-content">
+                  <span class="upload-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                      <path d="M14 3v5h5M8 13h8M8 17h5" />
+                    </svg>
+                  </span>
+                  <span class="upload-hint">点击选择文件 · <em>PDF 文档</em></span>
+                  <span class="file-chosen" id="pdf-file-name">尚未选择文件</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="pdf-btn" type="button" onclick="submitFile('pdf', '/pdf-summary')">生成摘要</button>
+            </div>
+
+            <div class="output-card" id="pdf-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="pdf-output" class="output-area placeholder">摘要要点将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-csv" class="panel" aria-labelledby="csv-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="csv-title">CSV 预览</h2>
+              <p class="panel-desc">上传 CSV 表格，AI 将预览数据结构、字段含义和可能的分析方向，方便你快速判断数据价值。</p>
+            </div>
+            <div class="panel-badge">FormData 字段：file</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>上传文件</span>
+                <span class="card-hint">仅支持 .csv</span>
+              </div>
+              <label class="upload-area" for="csv-file">
+                <input type="file" id="csv-file" accept=".csv,text/csv" onchange="onFileChosen('csv')" />
+                <span class="upload-content">
+                  <span class="upload-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+                      <path d="M4 9h16M4 15h16M10 9v12M16 9v12" />
+                    </svg>
+                  </span>
+                  <span class="upload-hint">点击选择文件 · <em>CSV 表格</em></span>
+                  <span class="file-chosen" id="csv-file-name">尚未选择文件</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="csv-btn" type="button" onclick="submitFile('csv', '/csv-preview')">分析表格</button>
+            </div>
+
+            <div class="output-card" id="csv-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="csv-output" class="output-area placeholder">分析结果将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+
+        <section id="panel-admin" class="panel" aria-labelledby="admin-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="admin-title">用户数据后台</h2>
+              <p class="panel-desc">按账号查看工具调用次数、成功率、最近活动和请求明细。</p>
+            </div>
+            <div class="panel-badge">SQLite</div>
+          </div>
+
+          <div class="admin-summary-grid">
+            <div class="metric"><span>账号数量</span><strong id="total-users">0</strong></div>
+            <div class="metric"><span>总调用次数</span><strong id="total-requests">0</strong></div>
+            <div class="metric"><span>失败次数</span><strong id="total-errors">0</strong></div>
+          </div>
+
+          <div class="action-row"><button id="refresh-admin-btn" class="action-btn" type="button">刷新数据</button></div>
+          <h3>账号汇总</h3>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>调用</th><th>成功</th><th>失败</th><th>最近活动</th></tr></thead>
+              <tbody id="user-stats-body"><tr><td colspan="7">暂无数据</td></tr></tbody>
+            </table>
+          </div>
+
+          <h3 style="margin-top: 22px;">最近请求</h3>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead><tr><th>时间</th><th>用户</th><th>功能</th><th>状态</th><th>耗时</th><th>内容摘要</th></tr></thead>
+              <tbody id="activity-logs-body"><tr><td colspan="6">暂无数据</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const TABS = ["resume", "copywrite", "translate", "pdf", "csv", "admin"];
+    const AUTH_TOKEN_KEY = "nova_auth_token";
+    let currentUser = null;
+    let registrationMode = false;
+
+    const FIELD = {
+      resume: "text",
+      copywrite: "scene",
+      translate: "text"
+    };
+
+    const FILE_RULES = {
+      pdf: {
+        label: "PDF",
+        extensions: [".pdf"],
+        mimeTypes: ["application/pdf"]
+      },
+      csv: {
+        label: "CSV",
+        extensions: [".csv"],
+        mimeTypes: ["text/csv", "application/csv", "application/vnd.ms-excel"]
+      }
+    };
+
+    function switchTab(name) {
+      const targetButton = document.querySelector(`[data-tab="${name}"]`);
+      if (!TABS.includes(name) || !targetButton || targetButton.hidden) {
+        return;
+      }
+
+      document.querySelectorAll(".tab-btn").forEach((button) => {
+        const isActive = button.dataset.tab === name;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-selected", String(isActive));
+      });
+
+      TABS.forEach((tabName) => {
+        const panel = document.getElementById(`panel-${tabName}`);
+
+        if (panel) {
+          panel.classList.toggle("active", tabName === name);
+        }
+      });
+
+      if (name === "admin") refreshAdminDashboard();
+    }
+
+    function onFileChosen(type) {
+      const input = document.getElementById(`${type}-file`);
+      const fileName = document.getElementById(`${type}-file-name`);
+      const file = input.files[0];
+
+      if (!currentUser) {
+        setOutput(type, "请先登录后使用。", "error");
+        return;
+      }
+
+      if (!file) {
+        fileName.textContent = "尚未选择文件";
+        return;
+      }
+
+      const error = validateFile(type, file);
+
+      if (error) {
+        input.value = "";
+        fileName.textContent = "尚未选择文件";
+        setOutput(type, error, "error");
+        return;
+      }
+
+      fileName.textContent = `已选择：${file.name}`;
+      setOutput(type, `${FILE_RULES[type].label} 文件已就绪，点击按钮开始处理。`, "placeholder");
+    }
+
+    function setOutput(id, text, state = "") {
+      const output = document.getElementById(`${id}-output`);
+      const outputCard = document.getElementById(`${id}-output-card`);
+      const className = ["output-area"];
+
+      if (state) {
+        className.push(state);
+      }
+
+      output.className = className.join(" ");
+      output.textContent = text;
+
+      if (outputCard) {
+        outputCard.classList.toggle("has-error", state === "error");
+      }
+    }
+
+    function setButtonLoading(button, isLoading) {
+      if (!button.dataset.defaultText) {
+        button.dataset.defaultText = button.textContent.trim();
+      }
+
+      button.disabled = isLoading;
+      button.textContent = isLoading ? "处理中…" : button.dataset.defaultText;
+    }
+
+    function validateFile(type, file) {
+      const rule = FILE_RULES[type];
+      const fileName = file.name.toLowerCase();
+      const hasValidExtension = rule.extensions.some((extension) => fileName.endsWith(extension));
+      const hasValidMime = !file.type || rule.mimeTypes.includes(file.type);
+
+      if (!hasValidExtension || !hasValidMime) {
+        return `文件类型不正确，请上传 ${rule.label} 文件。`;
+      }
+
+      return "";
+    }
+
+    async function getResponsePayload(response) {
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json")) {
+        return response.json();
+      }
+
+      return response.text();
+    }
+
+    function formatError(response, payload) {
+      let message = "";
+
+      if (payload && typeof payload === "object") {
+        const detail = payload.detail || payload.message || payload.error;
+        message = typeof detail === "string" ? detail : JSON.stringify(detail || payload);
+      } else if (typeof payload === "string") {
+        message = payload;
+      }
+
+      return `请求失败，HTTP 状态码：${response.status}${message ? `\n${message}` : ""}`;
+    }
+
+    async function submitText(feature) {
+      const input = document.getElementById(`${feature}-input`);
+      const button = document.getElementById(`${feature}-btn`);
+      const text = input.value.trim();
+
+      if (!currentUser) {
+        setOutput(feature, "请先登录后使用。", "error");
+        return;
+      }
+
+      if (!text) {
+        setOutput(feature, "请输入需要处理的内容。", "error");
+        input.focus();
+        return;
+      }
+
+      setButtonLoading(button, true);
+      setOutput(feature, "处理中，请稍候…", "placeholder");
+
+      try {
+        const response = await fetch(`/${feature}`, {
+          method: "POST",
+          headers: authHeaders(true),
+          body: JSON.stringify({
+            [FIELD[feature]]: text
+          })
+        });
+
+        const payload = await getResponsePayload(response);
+
+        if (!response.ok) {
+          throw new Error(formatError(response, payload));
+        }
+
+        const reply = payload && typeof payload === "object" ? payload.reply : payload;
+        setOutput(feature, reply || "后端未返回有效内容。");
+      } catch (error) {
+        setOutput(feature, error.message || "请求失败，请检查后端是否已启动。", "error");
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    async function submitFile(type, endpoint) {
+      const input = document.getElementById(`${type}-file`);
+      const button = document.getElementById(`${type}-btn`);
+      const file = input.files[0];
+
+      if (!file) {
+        setOutput(type, "请先选择需要上传的文件。", "error");
+        input.focus();
+        return;
+      }
+
+      const validationError = validateFile(type, file);
+
+      if (validationError) {
+        input.value = "";
+        document.getElementById(`${type}-file-name`).textContent = "尚未选择文件";
+        setOutput(type, validationError, "error");
+        return;
+      }
+
+      setButtonLoading(button, true);
+      setOutput(type, "处理中，请稍候…", "placeholder");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: authHeaders(),
+          body: formData
+        });
+
+        const payload = await getResponsePayload(response);
+
+        if (!response.ok) {
+          throw new Error(formatError(response, payload));
+        }
+
+        const reply = payload && typeof payload === "object" ? payload.reply : payload;
+        setOutput(type, reply || "后端未返回有效内容。");
+      } catch (error) {
+        setOutput(type, error.message || "请求失败，请检查后端是否已启动。", "error");
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+
+    function authHeaders(json = false) {
+      const headers = {};
+      const token = localStorage.getItem(AUTH_TOKEN_KEY);
+      if (token) headers["X-Session-Token"] = token;
+      if (json) headers["Content-Type"] = "application/json";
+      return headers;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    function formatTime(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN", { hour12: false });
+    }
+
+    function updateAuthUI() {
+      const loggedIn = Boolean(currentUser);
+      document.getElementById("login-panel").hidden = loggedIn;
+      document.getElementById("user-panel").hidden = !loggedIn;
+      document.getElementById("status-text").textContent = loggedIn ? "账户已登录" : "请登录后使用";
+      document.getElementById("admin-tab").hidden = currentUser?.role !== "admin";
+      if (loggedIn) {
+        document.getElementById("current-user").textContent = `${currentUser.display_name} (${currentUser.username})`;
+        document.getElementById("current-role").textContent = currentUser.role === "admin" ? "管理员" : "普通用户";
+      } else if (document.getElementById("panel-admin").classList.contains("active")) {
+        switchTab("resume");
+      }
+    }
+
+    function setRegistrationMode(enabled) {
+      registrationMode = enabled;
+      document.getElementById("display-name").hidden = !enabled;
+      document.getElementById("confirm-password").hidden = !enabled;
+      document.getElementById("login-btn").textContent = enabled ? "创建账号" : "登录";
+      document.getElementById("auth-switch-btn").textContent = enabled ? "返回登录" : "注册新账号";
+      document.getElementById("password").autocomplete = enabled ? "new-password" : "current-password";
+      document.getElementById("auth-message").textContent = enabled
+        ? "账号仅支持小写字母、数字和下划线；密码至少 8 位并包含字母和数字。"
+        : "请输入账号密码，或注册新账号。";
+    }
+
+    async function submitAuth() {
+      const button = document.getElementById("login-btn");
+      const message = document.getElementById("auth-message");
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const displayName = document.getElementById("display-name").value.trim();
+      const confirmPassword = document.getElementById("confirm-password").value;
+
+      if (registrationMode && password !== confirmPassword) {
+        message.textContent = "两次输入的密码不一致";
+        return;
+      }
+      if (registrationMode && !displayName) {
+        message.textContent = "请输入姓名";
+        return;
+      }
+
+      button.disabled = true;
+      message.textContent = registrationMode ? "正在创建账号..." : "正在登录...";
+      try {
+        const response = await fetch(registrationMode ? "/auth/register" : "/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(registrationMode
+            ? { username, password, display_name: displayName }
+            : { username, password })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || (registrationMode ? "注册失败" : "登录失败"));
+        localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+        currentUser = data.user;
+        setRegistrationMode(false);
+        updateAuthUI();
+      } catch (error) {
+        message.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetch("/auth/logout", { method: "POST", headers: authHeaders() });
+      } finally {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        currentUser = null;
+        updateAuthUI();
+      }
+    }
+
+    async function loadCurrentUser() {
+      if (!localStorage.getItem(AUTH_TOKEN_KEY)) {
+        updateAuthUI();
+        return;
+      }
+      try {
+        const response = await fetch("/auth/me", { headers: authHeaders() });
+        if (!response.ok) throw new Error("session expired");
+        currentUser = (await response.json()).user;
+      } catch {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        currentUser = null;
+      }
+      updateAuthUI();
+    }
+
+    async function refreshAdminDashboard() {
+      if (currentUser?.role !== "admin") return;
+      const [usersResponse, logsResponse] = await Promise.all([
+        fetch("/admin/users", { headers: authHeaders() }),
+        fetch("/admin/logs?limit=100", { headers: authHeaders() })
+      ]);
+      if (!usersResponse.ok || !logsResponse.ok) return;
+      const usersData = await usersResponse.json();
+      const logsData = await logsResponse.json();
+      document.getElementById("total-users").textContent = usersData.summary.total_users;
+      document.getElementById("total-requests").textContent = usersData.summary.total_requests;
+      document.getElementById("total-errors").textContent = usersData.summary.total_errors;
+      document.getElementById("user-stats-body").innerHTML = usersData.users.map(user => `
+        <tr><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.display_name)}</td>
+        <td>${user.role === "admin" ? "管理员" : "用户"}</td><td>${user.request_count}</td>
+        <td>${user.success_count || 0}</td><td>${user.error_count || 0}</td><td>${escapeHtml(formatTime(user.last_active_at))}</td></tr>
+      `).join("") || '<tr><td colspan="7">暂无数据</td></tr>';
+      document.getElementById("activity-logs-body").innerHTML = logsData.logs.map(log => `
+        <tr><td>${escapeHtml(formatTime(log.created_at))}</td><td>${escapeHtml(log.display_name)} (${escapeHtml(log.username)})</td>
+        <td>${escapeHtml(log.feature)}</td><td class="status-${escapeHtml(log.status)}">${log.status === "success" ? "成功" : "失败"}</td>
+        <td>${log.duration_ms} ms</td><td>${escapeHtml(log.error || log.input_preview || "-")}</td></tr>
+      `).join("") || '<tr><td colspan="6">暂无数据</td></tr>';
+    }
+
+    document.getElementById("login-btn").addEventListener("click", submitAuth);
+    document.getElementById("auth-switch-btn").addEventListener("click", () => setRegistrationMode(!registrationMode));
+    document.getElementById("logout-btn").addEventListener("click", logout);
+    document.getElementById("refresh-admin-btn").addEventListener("click", refreshAdminDashboard);
+    document.getElementById("password").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") submitAuth();
+    });
+    document.getElementById("confirm-password").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") submitAuth();
+    });
+    loadCurrentUser();
+
+  </script>
+</body>
+</html>
