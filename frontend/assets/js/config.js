@@ -1,4 +1,5 @@
 (function configureWorkshop(global) {
+  const isFilePreview = global.location.protocol === "file:";
   const metaValue = document
     .querySelector('meta[name="api-base-url"]')
     ?.getAttribute("content")
@@ -10,6 +11,7 @@
 
   global.YS_AI_CONFIG = Object.freeze({
     apiBaseUrl: (injectedValue || metaValue || "").replace(/\/+$/, ""),
+    isFilePreview,
     endpoints: Object.freeze({
       auth: Object.freeze({
         login: "/auth/login",
@@ -27,6 +29,11 @@
       career: Object.freeze({
         applications: "/career/applications"
       }),
+      optimizer: Object.freeze({
+        suggestions: "/career/resume-suggestions",
+        resumes: "/career/resumes",
+        versions: "/career/resume-versions"
+      }),
       admin: Object.freeze({
         users: "/admin/users",
         logs: "/admin/logs"
@@ -34,4 +41,8 @@
       health: "/health"
     })
   });
+
+  if (isFilePreview) {
+    document.getElementById("file-mode-notice")?.removeAttribute("hidden");
+  }
 })(window);

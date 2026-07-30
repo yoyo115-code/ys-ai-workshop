@@ -15,6 +15,10 @@ platform.db
 *.log
 node_modules/
 dist/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
 .DS_Store
 .vscode/
 .idea/

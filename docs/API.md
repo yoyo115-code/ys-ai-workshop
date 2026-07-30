@@ -106,6 +106,58 @@ Multipart fields：
 
 删除当前用户自己的申请及其简历来源、分析和匹配项，成功返回 `204`。
 
+## Resume Optimizer & Versioning
+
+以下接口均要求 Session，并从当前用户反向校验 Application、Resume、Version 和 Suggestion 所有权；越权资源统一返回 `404`。
+
+### `POST /career/applications/{application_id}/resume-suggestions/generate`
+
+可选 JSON：`{"retry": false}`。以当前 ResumeVersion、JD 和最新 Career Match 上下文生成逐条建议。已有活跃建议时默认复用；`retry: true` 会把旧活跃建议标记为 `superseded` 并新建一批。
+
+每条包含原句、建议句、理由、JD/简历证据、风险、是否需要补充事实、状态、生成次数和 Prompt 版本。
+
+### `GET /career/applications/{application_id}/resume-suggestions`
+
+打开已保存工作区。如果该申请尚无 Resume，会从已提取的简历文本幂等初始化 Resume 和 v1，不会调用模型。
+
+### `PATCH /career/resume-suggestions/{suggestion_id}`
+
+JSON：
+
+- `{"action": "accept"}`
+- `{"action": "reject"}`
+- `{"action": "edit", "suggested_text": "...", "confirm_risk": false}`
+
+相同的接受/拒绝操作幂等。非法状态转换返回 `409`。`high` 风险或 `clarification_required` 的模型建议不能直接接受，必须手工编辑并显式确认。
+
+### `POST /career/resume-suggestions/{suggestion_id}/regenerate`
+
+只重新生成该原句建议。新建议的 `generation_number` 递增，旧建议变为 `superseded`，旧记录和事件保留。
+
+### `POST /career/resume-suggestions/{suggestion_id}/undo`
+
+撤销该建议最近一次可撤销的接受、拒绝或编辑事件，并追加 Undo 事件。
+
+### `POST /career/applications/{application_id}/resume-versions`
+
+将当前版本上的 `accepted` 和经用户确认的 `edited` 建议应用为新的 `optimized` 完整文本快照。插入版本和更新当前指针位于同一 SQLite 事务，冲突或失败不保留半成品。
+
+### `GET /career/resumes/{resume_id}/versions`
+
+按 `version_number` 倒序返回当前用户该 Resume 的不可变完整文本快照。
+
+### `GET /career/resume-versions/{version_id}`
+
+返回版本内容、哈希、来源、父版本和创建时间。
+
+### `GET /career/resume-versions/{version_id}/compare/{other_version_id}`
+
+使用确定性文本 Diff 返回 `added`、`deleted` 或 `modified` 变更，不调用 LLM。两个版本必须属于同一 Resume。
+
+### `POST /career/resume-versions/{version_id}/restore`
+
+以目标历史内容创建新的 `restored` 快照，不删除历史或移动指针到旧行。
+
 ## Admin
 
 ### `GET /admin/users`
@@ -123,6 +175,7 @@ Multipart fields：
 - `403`：普通用户访问管理员接口。
 - `409`：用户名重复。
 - `409`：Career Match 正在分析，拒绝重复任务。
+- `409`：建议状态转换非法、高风险未确认，或版本无可用建议/原句冲突。
 - `422`：Career Match 输入、简历格式或文本提取无效。
 - `413`：上传超过 20 MB。
 - `502`：外部模型调用失败。

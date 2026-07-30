@@ -2,6 +2,30 @@
 
 All notable changes to Y's AI Workshop are documented in this file.
 
+## [v0.3.0] - 2026-07-30
+
+### Added
+
+- Evidence-grounded resume suggestions
+- Accept, reject, edit, regenerate and undo workflow
+- Immutable resume version history
+- Version diff and restore
+- Deterministic hallucination-risk checks
+- Browser delivery and static asset validation
+
+### Testing
+
+- 58 automated tests
+- Browser acceptance validation
+- Static resource delivery tests
+
+### Known limitations
+
+- No layout-preserving DOCX/PDF export
+- No OCR
+- No public deployment
+- Playwright runtime remains optional
+
 ## [v0.2.0] - 2026-07-30
 
 ### Added

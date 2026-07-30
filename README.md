@@ -2,9 +2,9 @@
 
 > AI-powered career and productivity workspace
 
-Y's AI Workshop 是一个从 Group B Week 1 Nova AI 智能工作台原型继续演进的个人项目。当前版本以 Career Match 为核心：用户可以保存简历与岗位 JD，并获得引用原文证据的结构化匹配分析；原有五个工具继续作为 AI Labs 保留。
+Y's AI Workshop 是一个从 Group B Week 1 Nova AI 智能工作台原型继续演进的个人项目。当前版本以 Career Match 和 Resume Optimizer 为核心：用户可以保存简历与岗位 JD，获得引用原文证据的结构化匹配分析，再逐条审阅修改建议并保存可比较、可恢复的岗位定制简历版本。原有五个工具继续作为 AI Labs 保留。
 
-项目仍是本地优先的 MVP。当前已完成岗位匹配闭环，但尚未实现简历逐条改写、Cover Letter、面试模拟或分享协作。
+项目仍是本地优先的 MVP。当前已完成岗位匹配与文本简历优化闭环，但尚未实现 PDF/DOCX 版式保真导出、Cover Letter、面试模拟或分享协作。
 
 ## 当前功能
 
@@ -12,8 +12,11 @@ Y's AI Workshop 是一个从 Group B Week 1 Nova AI 智能工作台原型继续�
 - 可解释匹配：按已覆盖、部分覆盖、缺失、信息不足、表达问题和岗位风险展示原文证据。
 - 申请工作区：按用户保存、重开、重试和删除申请；模型失败不会丢失简历与 JD。
 - 防编造校验：模型 JSON 先经过 Pydantic Schema，再验证 JD 与简历引用确实来自输入原文。
+- Resume Optimizer：对当前版本生成可接受、拒绝、编辑、单条重新生成和 Undo 的句子级建议。
+- 事实风险防护：确定性校验原句与双向证据，检测新数字、技术名和专有名词；高风险建议不能直接接受。
+- 版本管理：将已接受/编辑建议事务化生成不可变文本快照，支持历史、Diff 和恢复。
 
-- Resume Optimizer：优化用户粘贴的简历片段。
+- AI Labs / Resume Optimizer：保留原型的单次简历片段优化接口。
 - Copywriting：根据场景生成中文文案。
 - Translation：自动判断中英文翻译方向。
 - PDF Summary：提取 PDF 前 8 页文本并生成摘要。
@@ -44,7 +47,9 @@ ys-ai-workshop/
 │   └── requirements-dev.txt    # 测试额外依赖
 ├── database/                  # schema、迁移和 seed 约定
 ├── docs/                      # 架构、API、数据库和开发文档
-├── tests/backend/             # 不访问真实模型的回归测试
+├── tests/
+│   ├── backend/             # mock Provider 与静态交付测试
+│   └── browser/             # 可选 Playwright 浏览器验收
 ├── .env.example
 ├── .gitignore
 ├── PROJECT_ORIGIN.md
@@ -81,6 +86,8 @@ uvicorn app.main:app --reload
 
 访问 `http://127.0.0.1:8000`。后端会提供首页和 `/assets` 静态资源。
 
+正式本地使用必须通过上述 HTTP 地址。双击 `frontend/index.html` 只是带样式的文件预览；页面会显示正确启动命令，登录、API 和业务功能不以 `file://` 为运行方式。
+
 ## 环境变量
 
 | 变量 | 用途 |
@@ -105,6 +112,19 @@ Career Match 新增：
 - `GET /career/applications/{application_id}`
 - `POST /career/applications/{application_id}/analyze`
 - `DELETE /career/applications/{application_id}`
+
+Resume Optimizer & Versioning 新增：
+
+- `POST /career/applications/{application_id}/resume-suggestions/generate`
+- `GET /career/applications/{application_id}/resume-suggestions`
+- `PATCH /career/resume-suggestions/{suggestion_id}`
+- `POST /career/resume-suggestions/{suggestion_id}/regenerate`
+- `POST /career/resume-suggestions/{suggestion_id}/undo`
+- `POST /career/applications/{application_id}/resume-versions`
+- `GET /career/resumes/{resume_id}/versions`
+- `GET /career/resume-versions/{version_id}`
+- `GET /career/resume-versions/{version_id}/compare/{other_version_id}`
+- `POST /career/resume-versions/{version_id}/restore`
 
 原有接口保持不变：
 
@@ -134,12 +154,14 @@ Career Match 新增：
 
 ## 测试
 
-测试使用临时 SQLite 文件和 mock LLM Provider，不会请求真实模型。当前覆盖 28 项后端测试，包括权限隔离、PDF/DOCX、结构校验、失败恢复、隐私日志、Prompt Injection 和旧接口回归：
+测试使用临时 SQLite 文件和 mock LLM Provider，不会请求真实模型。当前覆盖 58 项后端/静态交付自动化测试，包括权限隔离、PDF/DOCX、Prompt/Schema 与证据校验、建议状态机、事务回滚、版本 Diff/恢复、静态资源 MIME/路径与旧接口回归：
 
 ```bash
 pip install -r backend/requirements-dev.txt
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
 ```
+
+`tests/browser/` 另提供 4 项可执行 Playwright 验收，浏览器依赖和二进制不进入仓库；命令见 `docs/TESTING.md`。
 
 ## 当前限制
 
@@ -147,14 +169,16 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
 - Career Match 不支持 OCR；扫描版 PDF 会明确返回无法提取文字。
 - 第一版 Career Match 固定使用 DeepSeek，不进行双模型比较。
 - 匹配依赖模型对原始要求的拆分；引用经过原文校验，但语义判断仍可能需要用户复核。
+- Resume Optimizer 目前对结构化纯文本工作，不保留原 PDF/DOCX 版式，且精确重复原句会因歧义阻止生成版本。
+- 新事实风险检测为保守启发式，可能误报，不替代用户核查。
 - AI Labs 的 PDF Summary 不支持 OCR，且只读取前 8 页可提取文本。
 - CSV 仅抽取有限样本，不是完整分析引擎。
 - SQLite 和 Header Session 适合本地原型，不是最终生产方案。
 - Career Match 活动日志不保存简历、JD 或模型完整响应；旧 AI Labs 仍保留有限预览，需要继续完善保留周期。
-- 前端仍是原生单页，尚未建立组件化构建和浏览器自动化测试。
+- 前端仍是原生单页，尚未建立组件化构建；Playwright 浏览器测试为可选开发依赖，仓库不提交浏览器二进制。
 
 ## Career Studio 路线图
 
-下一阶段将基于已保存的匹配分析增加逐条、可接受或拒绝的简历修改建议与 ResumeVersion。Cover Letter、面试准备和分享能力仍是后续计划，不属于当前已实现功能。
+Career Match 和可版本化 Resume Optimizer 已组成求职主流程的前两步。版式保真导出、Cover Letter、面试准备和分享能力仍是后续计划，不属于当前已实现功能。
 
 项目来源见 `PROJECT_ORIGIN.md`，开发说明见 `docs/DEVELOPMENT.md`。

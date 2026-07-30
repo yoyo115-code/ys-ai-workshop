@@ -1,9 +1,14 @@
-const TABS = ["career", "resume", "copywrite", "translate", "pdf", "csv", "admin"];
+const TABS = ["career", "optimizer", "resume", "copywrite", "translate", "pdf", "csv", "admin"];
 const AUTH_TOKEN_KEY = "nova_auth_token";
 const API_CONFIG = window.YS_AI_CONFIG;
 let currentUser = null;
 let registrationMode = false;
 let currentCareerApplicationId = null;
+let optimizerWorkspace = null;
+let optimizerVersions = [];
+let optimizerFilter = "all";
+let optimizerDirty = false;
+let lastOptimizerSuggestionId = null;
 
 function apiUrl(path) {
   return `${API_CONFIG.apiBaseUrl}${path}`;
@@ -33,6 +38,12 @@ function switchTab(name) {
   if (!TABS.includes(name) || !targetButton || targetButton.hidden) {
     return;
   }
+  const optimizerIsActive = document.getElementById("panel-optimizer")?.classList.contains("active");
+  if (optimizerIsActive && name !== "optimizer" && optimizerDirty) {
+    const confirmed = window.confirm("有尚未保存的建议编辑，确定离开 Resume Optimizer？");
+    if (!confirmed) return;
+    optimizerDirty = false;
+  }
 
   document.querySelectorAll(".tab-btn").forEach((button) => {
     const isActive = button.dataset.tab === name;
@@ -50,6 +61,7 @@ function switchTab(name) {
 
   if (name === "admin") refreshAdminDashboard();
   if (name === "career") refreshCareerHistory();
+  if (name === "optimizer") loadOptimizerApplications();
 }
 
 function onFileChosen(type) {
@@ -337,6 +349,7 @@ async function logout() {
     currentUser = null;
     updateAuthUI();
     renderCareerHistory([]);
+    resetOptimizerUI();
   }
 }
 
@@ -543,6 +556,7 @@ function renderCareerHistory(applications) {
         <small>${escapeHtml(formatTime(application.created_at))}</small>
         <em class="history-status status-${escapeHtml(application.status)}">${escapeHtml(CAREER_STATUS_LABELS[application.status] || application.status)}</em>
       </button>
+      ${application.status === "completed" ? `<button class="history-optimize" type="button" onclick="openOptimizerForApplication(${application.id})">优化简历</button>` : ""}
       <button class="history-delete" type="button" aria-label="删除申请" onclick="deleteCareerApplication(${application.id})">删除</button>
     </article>`).join("");
 }
@@ -632,6 +646,449 @@ async function deleteCareerApplication(applicationId) {
   }
 }
 
+const OPTIMIZER_STATUS_LABELS = {
+  pending: "Pending",
+  accepted: "Accepted",
+  rejected: "Rejected",
+  edited: "Edited",
+  superseded: "Superseded"
+};
+
+const VERSION_SOURCE_LABELS = {
+  uploaded: "Uploaded",
+  parsed: "Parsed source",
+  optimized: "Accepted suggestions",
+  manual_edit: "Manual edit",
+  restored: "Restored snapshot"
+};
+
+function optimizerApplicationPath(applicationId, suffix = "") {
+  return `/career/applications/${applicationId}${suffix}`;
+}
+
+function optimizerSuggestionPath(suggestionId, suffix = "") {
+  return `${API_CONFIG.endpoints.optimizer.suggestions}/${suggestionId}${suffix}`;
+}
+
+function optimizerVersionPath(versionId, suffix = "") {
+  return `${API_CONFIG.endpoints.optimizer.versions}/${versionId}${suffix}`;
+}
+
+function setOptimizerMessage(message, state = "placeholder", retry = false) {
+  const target = document.getElementById("optimizer-message");
+  target.className = `career-message ${state}`;
+  target.textContent = message;
+  document.getElementById("optimizer-retry-btn").hidden = !retry;
+}
+
+function markOptimizerDirty() {
+  optimizerDirty = true;
+  setOptimizerMessage("建议文本有未保存编辑，请点击对应卡片的“保存编辑”。", "loading");
+}
+
+async function loadOptimizerApplications(selectedApplicationId = null) {
+  const select = document.getElementById("optimizer-application-select");
+  if (!currentUser) {
+    select.innerHTML = '<option value="">请先登录</option>';
+    setOptimizerMessage("请先登录，再打开 Resume Optimizer。", "error");
+    return;
+  }
+  const previous = selectedApplicationId || select.value || optimizerWorkspace?.application_id;
+  try {
+    const response = await fetch(apiUrl(API_CONFIG.endpoints.career.applications), { headers: authHeaders() });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    const eligibleApplications = payload.filter(application => application.status === "completed");
+    select.innerHTML = '<option value="">请选择已完成分析的申请</option>' + eligibleApplications.map(application => `
+      <option value="${application.id}">${escapeHtml(application.company_name || "未填写公司")} · ${escapeHtml(application.job_title || "未填写岗位")} · ${escapeHtml(CAREER_STATUS_LABELS[application.status] || application.status)}</option>
+    `).join("");
+    if (previous && eligibleApplications.some(item => item.id === Number(previous))) {
+      select.value = String(previous);
+    }
+    if (!eligibleApplications.length) {
+      setOptimizerMessage("还没有已完成分析的申请。请先完成 Career Match。", "placeholder");
+    }
+  } catch (error) {
+    setOptimizerMessage(error.message || "申请记录加载失败。", "error", true);
+  }
+}
+
+async function openOptimizerForApplication(applicationId) {
+  optimizerDirty = false;
+  switchTab("optimizer");
+  await loadOptimizerApplications(applicationId);
+  document.getElementById("optimizer-application-select").value = String(applicationId);
+  await loadOptimizerWorkspace(applicationId);
+}
+
+async function loadSelectedOptimizerWorkspace() {
+  const applicationId = Number(document.getElementById("optimizer-application-select").value);
+  if (!applicationId) {
+    setOptimizerMessage("请选择一条申请记录。", "error");
+    return;
+  }
+  await loadOptimizerWorkspace(applicationId);
+}
+
+async function loadOptimizerWorkspace(applicationId) {
+  setOptimizerMessage("正在加载简历版本和建议状态…", "loading");
+  document.getElementById("optimizer-suggestions").innerHTML = '<div class="empty-state">Loading suggestions…</div>';
+  try {
+    const response = await fetch(
+      apiUrl(optimizerApplicationPath(applicationId, "/resume-suggestions")),
+      { headers: authHeaders() }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    optimizerWorkspace = payload;
+    optimizerDirty = false;
+    renderOptimizerWorkspace();
+    await loadOptimizerVersions();
+    setOptimizerMessage("工作区已加载。所有建议状态和版本都会保存到当前账号。", "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "工作区加载失败。", "error", true);
+    document.getElementById("optimizer-suggestions").innerHTML = '<div class="empty-state error-state">加载失败，请点击 Retry。</div>';
+  }
+}
+
+function renderOptimizerWorkspace() {
+  if (!optimizerWorkspace) return;
+  document.getElementById("optimizer-job").textContent = `${optimizerWorkspace.company_name || "未填写公司"} / ${optimizerWorkspace.job_title || "未填写岗位"}`;
+  document.getElementById("optimizer-version-number").textContent = `v${optimizerWorkspace.current_version.version_number}`;
+  document.getElementById("optimizer-accepted-count").textContent = optimizerWorkspace.accepted_count;
+  document.getElementById("optimizer-pending-count").textContent = optimizerWorkspace.pending_count;
+  document.getElementById("optimizer-resume-content").className = "resume-content";
+  document.getElementById("optimizer-resume-content").textContent = optimizerWorkspace.current_version.content;
+  renderOptimizerSuggestions();
+}
+
+function visibleOptimizerSuggestions() {
+  if (!optimizerWorkspace) return [];
+  return optimizerWorkspace.suggestions.filter(suggestion => {
+    if (optimizerFilter === "all") return true;
+    if (optimizerFilter === "accepted") return ["accepted", "edited"].includes(suggestion.status);
+    if (optimizerFilter === "risk") return suggestion.risk_level === "high" || suggestion.clarification_required;
+    return suggestion.status === optimizerFilter;
+  });
+}
+
+function renderOptimizerSuggestions() {
+  const container = document.getElementById("optimizer-suggestions");
+  const suggestions = visibleOptimizerSuggestions();
+  if (!optimizerWorkspace?.suggestions.length) {
+    container.innerHTML = '<div class="empty-state">Empty：尚未生成逐条建议。点击顶部“生成逐条建议”。</div>';
+    return;
+  }
+  if (!suggestions.length) {
+    container.innerHTML = '<div class="empty-state">当前筛选条件下没有建议。</div>';
+    return;
+  }
+  container.innerHTML = suggestions.map(suggestion => {
+    const blocked = suggestion.risk_level === "high" || suggestion.clarification_required;
+    const canDecide = suggestion.status === "pending";
+    const canEdit = ["pending", "edited"].includes(suggestion.status);
+    const canRegenerate = suggestion.status !== "superseded";
+    return `
+      <article class="suggestion-card status-${escapeHtml(suggestion.status)}" data-suggestion-id="${suggestion.id}">
+        <div class="suggestion-card-top">
+          <div class="suggestion-tags">
+            <span class="suggestion-status">${escapeHtml(OPTIMIZER_STATUS_LABELS[suggestion.status] || suggestion.status)}</span>
+            <span class="risk-badge risk-${escapeHtml(suggestion.risk_level)}">Risk: ${escapeHtml(suggestion.risk_level)}</span>
+            ${suggestion.clarification_required ? '<span class="clarification-badge">需要事实确认</span>' : ""}
+          </div>
+          <small>${escapeHtml(suggestion.section_key)} · generation ${suggestion.generation_number}</small>
+        </div>
+        <div class="suggestion-field"><span>原句</span><p>${escapeHtml(suggestion.source_text)}</p></div>
+        <label class="suggestion-field">建议句
+          <textarea id="optimizer-edit-${suggestion.id}" class="suggestion-edit" oninput="markOptimizerDirty()" ${canEdit ? "" : "disabled"}>${escapeHtml(suggestion.suggested_text)}</textarea>
+        </label>
+        <div class="suggestion-field"><span>修改原因</span><p>${escapeHtml(suggestion.reason)}</p></div>
+        <div class="suggestion-evidence-grid">
+          <div class="suggestion-field"><span>JD 依据</span><p>${escapeHtml(suggestion.jd_evidence || "无可验证 JD 证据")}</p></div>
+          <div class="suggestion-field"><span>简历依据</span><p>${escapeHtml(suggestion.resume_evidence || "无可验证简历证据")}</p></div>
+        </div>
+        <div class="suggestion-actions">
+          ${canDecide ? `<button class="secondary-btn suggestion-accept" type="button" onclick="updateOptimizerSuggestion(${suggestion.id}, 'accept')" ${blocked ? 'disabled title="高风险或待确认建议必须先编辑"' : ""}>接受</button>` : ""}
+          ${canDecide ? `<button class="secondary-btn" type="button" onclick="updateOptimizerSuggestion(${suggestion.id}, 'reject')">拒绝</button>` : ""}
+          ${canEdit ? `<button class="secondary-btn" type="button" onclick="saveOptimizerSuggestionEdit(${suggestion.id}, ${blocked})">保存编辑</button>` : ""}
+          ${canRegenerate ? `<button class="secondary-btn" type="button" onclick="regenerateOptimizerSuggestion(${suggestion.id})">重新生成此条</button>` : ""}
+        </div>
+      </article>`;
+  }).join("");
+}
+
+async function generateOptimizerSuggestions(retry = false) {
+  const applicationId = Number(document.getElementById("optimizer-application-select").value || optimizerWorkspace?.application_id);
+  if (!applicationId) {
+    setOptimizerMessage("请先选择申请。", "error");
+    return;
+  }
+  const button = document.getElementById("optimizer-generate-btn");
+  setButtonLoading(button, true);
+  setOptimizerMessage(retry ? "正在重试生成建议…" : "正在生成有证据的逐条建议…", "loading");
+  try {
+    const response = await fetch(
+      apiUrl(optimizerApplicationPath(applicationId, "/resume-suggestions/generate")),
+      {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ retry })
+      }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    optimizerWorkspace = payload;
+    optimizerDirty = false;
+    renderOptimizerWorkspace();
+    await loadOptimizerVersions();
+    setOptimizerMessage("建议已生成并保存。请逐条核查事实后再创建版本。", "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "建议生成失败。", "error", true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function updateOptimizerSuggestion(suggestionId, action) {
+  if (optimizerDirty && !window.confirm("此操作会放弃尚未保存的建议文本编辑，是否继续？")) return;
+  optimizerDirty = false;
+  setOptimizerMessage("正在保存建议状态…", "loading");
+  try {
+    const response = await fetch(apiUrl(optimizerSuggestionPath(suggestionId)), {
+      method: "PATCH",
+      headers: authHeaders(true),
+      body: JSON.stringify({ action })
+    });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    lastOptimizerSuggestionId = suggestionId;
+    document.getElementById("optimizer-undo-btn").disabled = false;
+    optimizerDirty = false;
+    await loadOptimizerWorkspace(optimizerWorkspace.application_id);
+    setOptimizerMessage(`建议已${action === "accept" ? "接受" : "拒绝"}并保存。`, "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "建议状态保存失败。", "error", true);
+  }
+}
+
+async function saveOptimizerSuggestionEdit(suggestionId, requiresConfirmation) {
+  const suggestedText = document.getElementById(`optimizer-edit-${suggestionId}`).value.trim();
+  if (!suggestedText) {
+    setOptimizerMessage("编辑后的建议不能为空。", "error");
+    return;
+  }
+  let confirmRisk = false;
+  if (requiresConfirmation) {
+    confirmRisk = window.confirm("该建议包含事实风险或证据不足。请确认你已核实并手工修正内容。是否继续保存？");
+    if (!confirmRisk) return;
+  }
+  setOptimizerMessage("正在保存手工编辑…", "loading");
+  try {
+    const response = await fetch(apiUrl(optimizerSuggestionPath(suggestionId)), {
+      method: "PATCH",
+      headers: authHeaders(true),
+      body: JSON.stringify({ action: "edit", suggested_text: suggestedText, confirm_risk: confirmRisk })
+    });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    lastOptimizerSuggestionId = suggestionId;
+    document.getElementById("optimizer-undo-btn").disabled = false;
+    optimizerDirty = false;
+    await loadOptimizerWorkspace(optimizerWorkspace.application_id);
+    setOptimizerMessage("手工编辑已保存，并记录到建议事件历史。", "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "编辑保存失败。", "error", true);
+  }
+}
+
+async function regenerateOptimizerSuggestion(suggestionId) {
+  if (optimizerDirty && !window.confirm("重新生成会放弃当前未保存编辑，是否继续？")) return;
+  optimizerDirty = false;
+  setOptimizerMessage("正在重新生成这一条建议，旧记录会保留…", "loading");
+  try {
+    const response = await fetch(apiUrl(optimizerSuggestionPath(suggestionId, "/regenerate")), {
+      method: "POST",
+      headers: authHeaders()
+    });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    await loadOptimizerWorkspace(optimizerWorkspace.application_id);
+    setOptimizerMessage("新建议已生成；旧建议标记为 Superseded 并继续保留。", "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "单条建议重新生成失败。", "error", true);
+  }
+}
+
+async function undoOptimizerSuggestion() {
+  if (!lastOptimizerSuggestionId) return;
+  setOptimizerMessage("正在撤销最近一次建议操作…", "loading");
+  try {
+    const response = await fetch(
+      apiUrl(optimizerSuggestionPath(lastOptimizerSuggestionId, "/undo")),
+      { method: "POST", headers: authHeaders() }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    lastOptimizerSuggestionId = null;
+    document.getElementById("optimizer-undo-btn").disabled = true;
+    optimizerDirty = false;
+    await loadOptimizerWorkspace(optimizerWorkspace.application_id);
+    setOptimizerMessage(`已撤销最近的 ${payload.undone_event_type} 操作。`, "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "Undo 失败。", "error", true);
+  }
+}
+
+async function createOptimizerVersion() {
+  if (!optimizerWorkspace) {
+    setOptimizerMessage("请先打开工作区。", "error");
+    return;
+  }
+  if (optimizerDirty) {
+    setOptimizerMessage("请先保存或放弃卡片中的手工编辑。", "error");
+    return;
+  }
+  const button = document.getElementById("optimizer-create-version-btn");
+  setButtonLoading(button, true);
+  setOptimizerMessage("正在事务化生成新版本…", "loading");
+  try {
+    const response = await fetch(
+      apiUrl(optimizerApplicationPath(optimizerWorkspace.application_id, "/resume-versions")),
+      { method: "POST", headers: authHeaders() }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    await loadOptimizerWorkspace(optimizerWorkspace.application_id);
+    setOptimizerMessage(`版本 v${payload.version_number} 已保存，旧版本保持不变。`, "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "版本生成失败，没有保存半成品。", "error", true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function loadOptimizerVersions() {
+  if (!optimizerWorkspace) return;
+  try {
+    const response = await fetch(
+      apiUrl(`${API_CONFIG.endpoints.optimizer.resumes}/${optimizerWorkspace.resume.id}/versions`),
+      { headers: authHeaders() }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    optimizerVersions = payload;
+    renderOptimizerVersions();
+  } catch (error) {
+    document.getElementById("optimizer-version-history").innerHTML = `<div class="empty-state error-state">${escapeHtml(error.message || "版本历史加载失败")}</div>`;
+  }
+}
+
+function renderOptimizerVersions() {
+  const options = optimizerVersions.map(version => `
+    <option value="${version.id}">v${version.version_number} · ${escapeHtml(VERSION_SOURCE_LABELS[version.source_type] || version.source_type)}</option>
+  `).join("");
+  document.getElementById("optimizer-version-select").innerHTML = options;
+  document.getElementById("optimizer-compare-from").innerHTML = options;
+  document.getElementById("optimizer-compare-to").innerHTML = options;
+  if (optimizerWorkspace) {
+    document.getElementById("optimizer-version-select").value = String(optimizerWorkspace.current_version.id);
+    document.getElementById("optimizer-compare-from").value = String(optimizerWorkspace.current_version.id);
+    const previous = optimizerVersions.find(version => version.id !== optimizerWorkspace.current_version.id);
+    if (previous) document.getElementById("optimizer-compare-to").value = String(previous.id);
+  }
+  document.getElementById("optimizer-version-history").innerHTML = optimizerVersions.map(version => `
+    <article class="version-item ${version.id === optimizerWorkspace?.current_version.id ? "active" : ""}">
+      <button type="button" onclick="viewOptimizerVersion(${version.id})">
+        <strong>v${version.version_number}</strong>
+        <span>${escapeHtml(VERSION_SOURCE_LABELS[version.source_type] || version.source_type)}</span>
+        <small>${escapeHtml(formatTime(version.created_at))} · parent ${version.parent_version_id || "none"}</small>
+      </button>
+      ${version.id !== optimizerWorkspace?.current_version.id ? `<button class="secondary-btn" type="button" onclick="restoreOptimizerVersion(${version.id})">恢复</button>` : '<span class="current-version-badge">Current</span>'}
+    </article>
+  `).join("") || '<div class="empty-state">暂无版本。</div>';
+}
+
+async function viewOptimizerVersion(versionId) {
+  try {
+    const response = await fetch(apiUrl(optimizerVersionPath(versionId)), { headers: authHeaders() });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    document.getElementById("optimizer-version-select").value = String(versionId);
+    document.getElementById("optimizer-resume-content").textContent = payload.content;
+    setOptimizerMessage(`正在查看历史版本 v${payload.version_number}；当前版本没有被改变。`, "placeholder");
+  } catch (error) {
+    setOptimizerMessage(error.message || "版本加载失败。", "error", true);
+  }
+}
+
+async function compareOptimizerVersions() {
+  const fromId = Number(document.getElementById("optimizer-compare-from").value);
+  const toId = Number(document.getElementById("optimizer-compare-to").value);
+  if (!fromId || !toId) {
+    setOptimizerMessage("请选择两个版本进行比较。", "error");
+    return;
+  }
+  try {
+    const response = await fetch(
+      apiUrl(optimizerVersionPath(fromId, `/compare/${toId}`)),
+      { headers: authHeaders() }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    renderOptimizerDiff(payload);
+    setOptimizerMessage(`已比较 v${payload.from_version.version_number} 与 v${payload.to_version.version_number}。`, "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "版本比较失败。", "error", true);
+  }
+}
+
+function renderOptimizerDiff(diff) {
+  const container = document.getElementById("optimizer-diff");
+  container.hidden = false;
+  const changes = diff.changes || [];
+  container.innerHTML = `
+    <div class="diff-heading"><strong>v${diff.from_version.version_number} → v${diff.to_version.version_number}</strong><span>${escapeHtml(VERSION_SOURCE_LABELS[diff.to_version.source_type] || diff.to_version.source_type)} · ${escapeHtml(formatTime(diff.to_version.created_at))} · parent ${diff.to_version.parent_version_id || "none"}</span></div>
+    ${changes.length ? changes.map(change => `
+      <div class="diff-change diff-${escapeHtml(change.change_type)}">
+        <span>${escapeHtml(change.change_type)}</span>
+        ${change.before.map(line => `<del>${escapeHtml(line)}</del>`).join("")}
+        ${change.after.map(line => `<ins>${escapeHtml(line)}</ins>`).join("")}
+      </div>`).join("") : '<div class="empty-state">两个版本内容相同。</div>'}
+  `;
+}
+
+async function restoreOptimizerVersion(versionId) {
+  if (!window.confirm("恢复会创建一个新的版本快照，不会删除现有历史。是否继续？")) return;
+  try {
+    const response = await fetch(apiUrl(optimizerVersionPath(versionId, "/restore")), {
+      method: "POST",
+      headers: authHeaders()
+    });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    await loadOptimizerWorkspace(optimizerWorkspace.application_id);
+    setOptimizerMessage(`已创建 restored 版本 v${payload.version_number}。`, "success");
+  } catch (error) {
+    setOptimizerMessage(error.message || "版本恢复失败。", "error", true);
+  }
+}
+
+function resetOptimizerUI() {
+  optimizerWorkspace = null;
+  optimizerVersions = [];
+  optimizerDirty = false;
+  lastOptimizerSuggestionId = null;
+  document.getElementById("optimizer-job").textContent = "-";
+  document.getElementById("optimizer-version-number").textContent = "-";
+  document.getElementById("optimizer-accepted-count").textContent = "0";
+  document.getElementById("optimizer-pending-count").textContent = "0";
+  document.getElementById("optimizer-resume-content").textContent = "打开申请后显示结构化文本版本。";
+  document.getElementById("optimizer-suggestions").innerHTML = '<div class="empty-state">登录并打开申请后显示建议。</div>';
+  document.getElementById("optimizer-version-history").innerHTML = '<div class="empty-state">暂无版本记录。</div>';
+  document.getElementById("optimizer-diff").hidden = true;
+  document.getElementById("optimizer-undo-btn").disabled = true;
+}
+
 async function refreshAdminDashboard() {
   if (currentUser?.role !== "admin") return;
   const [usersResponse, logsResponse] = await Promise.all([
@@ -671,6 +1128,31 @@ document.getElementById("career-retry-btn").addEventListener("click", () => {
 });
 document.getElementById("career-resume-text").addEventListener("input", (event) => {
   if (event.target.value.trim()) clearCareerFile();
+});
+document.getElementById("optimizer-load-btn").addEventListener("click", loadSelectedOptimizerWorkspace);
+document.getElementById("optimizer-generate-btn").addEventListener("click", () => generateOptimizerSuggestions(false));
+document.getElementById("optimizer-retry-btn").addEventListener("click", () => {
+  if (optimizerWorkspace) loadOptimizerWorkspace(optimizerWorkspace.application_id);
+  else loadOptimizerApplications();
+});
+document.getElementById("optimizer-undo-btn").addEventListener("click", undoOptimizerSuggestion);
+document.getElementById("optimizer-create-version-btn").addEventListener("click", createOptimizerVersion);
+document.getElementById("optimizer-refresh-versions-btn").addEventListener("click", loadOptimizerVersions);
+document.getElementById("optimizer-compare-btn").addEventListener("click", compareOptimizerVersions);
+document.getElementById("optimizer-version-select").addEventListener("change", (event) => {
+  if (event.target.value) viewOptimizerVersion(Number(event.target.value));
+});
+document.querySelectorAll("[data-optimizer-filter]").forEach(button => {
+  button.addEventListener("click", () => {
+    optimizerFilter = button.dataset.optimizerFilter;
+    document.querySelectorAll("[data-optimizer-filter]").forEach(item => item.classList.toggle("active", item === button));
+    renderOptimizerSuggestions();
+  });
+});
+window.addEventListener("beforeunload", (event) => {
+  if (!optimizerDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
 });
 document.getElementById("password").addEventListener("keydown", (event) => {
   if (event.key === "Enter") submitAuth();
