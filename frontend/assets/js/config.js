@@ -1,4 +1,5 @@
 (function configureWorkshop(global) {
+  const isFilePreview = global.location.protocol === "file:";
   const metaValue = document
     .querySelector('meta[name="api-base-url"]')
     ?.getAttribute("content")
@@ -10,6 +11,7 @@
 
   global.YS_AI_CONFIG = Object.freeze({
     apiBaseUrl: (injectedValue || metaValue || "").replace(/\/+$/, ""),
+    isFilePreview,
     endpoints: Object.freeze({
       auth: Object.freeze({
         login: "/auth/login",
@@ -39,4 +41,8 @@
       health: "/health"
     })
   });
+
+  if (isFilePreview) {
+    document.getElementById("file-mode-notice")?.removeAttribute("hidden");
+  }
 })(window);

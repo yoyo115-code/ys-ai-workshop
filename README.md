@@ -47,7 +47,9 @@ ys-ai-workshop/
 │   └── requirements-dev.txt    # 测试额外依赖
 ├── database/                  # schema、迁移和 seed 约定
 ├── docs/                      # 架构、API、数据库和开发文档
-├── tests/backend/             # 不访问真实模型的回归测试
+├── tests/
+│   ├── backend/             # mock Provider 与静态交付测试
+│   └── browser/             # 可选 Playwright 浏览器验收
 ├── .env.example
 ├── .gitignore
 ├── PROJECT_ORIGIN.md
@@ -83,6 +85,8 @@ uvicorn app.main:app --reload
 ```
 
 访问 `http://127.0.0.1:8000`。后端会提供首页和 `/assets` 静态资源。
+
+正式本地使用必须通过上述 HTTP 地址。双击 `frontend/index.html` 只是带样式的文件预览；页面会显示正确启动命令，登录、API 和业务功能不以 `file://` 为运行方式。
 
 ## 环境变量
 
@@ -150,12 +154,14 @@ Resume Optimizer & Versioning 新增：
 
 ## 测试
 
-测试使用临时 SQLite 文件和 mock LLM Provider，不会请求真实模型。当前覆盖 53 项自动化测试，包括权限隔离、PDF/DOCX、Prompt/Schema 与证据校验、建议状态机、事务回滚、版本 Diff/恢复、前端交互契约和旧接口回归：
+测试使用临时 SQLite 文件和 mock LLM Provider，不会请求真实模型。当前覆盖 58 项后端/静态交付自动化测试，包括权限隔离、PDF/DOCX、Prompt/Schema 与证据校验、建议状态机、事务回滚、版本 Diff/恢复、静态资源 MIME/路径与旧接口回归：
 
 ```bash
 pip install -r backend/requirements-dev.txt
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
 ```
+
+`tests/browser/` 另提供 4 项可执行 Playwright 验收，浏览器依赖和二进制不进入仓库；命令见 `docs/TESTING.md`。
 
 ## 当前限制
 
@@ -169,7 +175,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
 - CSV 仅抽取有限样本，不是完整分析引擎。
 - SQLite 和 Header Session 适合本地原型，不是最终生产方案。
 - Career Match 活动日志不保存简历、JD 或模型完整响应；旧 AI Labs 仍保留有限预览，需要继续完善保留周期。
-- 前端仍是原生单页，尚未建立组件化构建和浏览器自动化测试。
+- 前端仍是原生单页，尚未建立组件化构建；Playwright 浏览器测试为可选开发依赖，仓库不提交浏览器二进制。
 
 ## Career Studio 路线图
 

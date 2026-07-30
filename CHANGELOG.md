@@ -11,7 +11,9 @@ All notable changes to Y's AI Workshop are documented in this file.
 - `resume_suggestion_v1` 严格 Schema，以及原句/证据定位、新数字/技术名/专有名词风险检测和高风险接受阻断。
 - 不可变 ResumeVersion 完整文本快照，支持事务化生成、历史、确定性 Diff 和以新快照恢复。
 - Resume、Version、Suggestion 和 SuggestionEvent 四个 SQLite 表及 `0002_resume_versioning.sql`。
-- 53 项 mock Provider 自动化测试，包含建议状态机、事务回滚、用户隔离、版本操作、前端交互契约和旧功能回归。
+- 58 项 mock Provider/静态交付自动化测试，包含建议状态机、事务回滚、用户隔离、版本操作、静态资源路径/MIME 和旧功能回归。
+- Phase 3.1 前端交付修复：CSS/JavaScript 使用相对路径、`config.js` 先于 `app.js` 延迟执行、SVG 内建尺寸与样式化 `file://` 预览提示。
+- 4 项可选 Playwright 浏览器测试，覆盖样式、认证面板、Career/Optimizer/AI Labs 导航、静态资源和控制台错误。
 
 ### Current limitations
 
