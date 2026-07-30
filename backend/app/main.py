@@ -5,12 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, auth, career, labs, resume_optimizer, system
+from app.api import admin, auth, career, labs, resume_export, resume_optimizer, system
 from app.core.config import Settings, get_settings
 from app.repositories.database import Database
 from app.repositories.career import CareerRepository
 from app.repositories.workshop import WorkshopRepository
 from app.repositories.resume import ResumeRepository
+from app.repositories.resume_export import ResumeExportRepository
 from app.services.activity import ActivityService
 from app.services.auth import AuthService
 from app.services.csv_processing import CsvProcessingService
@@ -19,6 +20,9 @@ from app.services.llm import ExternalLLMProvider, LLMProvider
 from app.services.pdf_processing import PdfProcessingService
 from app.services.resume_parsing import ResumeParsingService
 from app.services.resume_optimizer import ResumeOptimizerService
+from app.services.resume_export import ResumeExportService
+from app.services.resume_structure import ResumeStructureService
+from app.services.document_rendering import ResumeDocumentRenderer
 
 
 def create_app(
@@ -30,6 +34,7 @@ def create_app(
     repository = WorkshopRepository(database)
     career_repository = CareerRepository(database)
     resume_repository = ResumeRepository(database)
+    resume_export_repository = ResumeExportRepository(database)
     auth_service = AuthService(repository, active_settings)
     active_llm_provider = llm_provider or ExternalLLMProvider(active_settings)
 
@@ -65,6 +70,12 @@ def create_app(
         repository,
         active_llm_provider,
     )
+    application.state.resume_export_service = ResumeExportService(
+        resume_export_repository,
+        ResumeStructureService(),
+        ResumeDocumentRenderer(),
+        active_settings.resume_export_dir,
+    )
 
     if active_settings.cors_origins:
         application.add_middleware(
@@ -84,6 +95,7 @@ def create_app(
     application.include_router(auth.router)
     application.include_router(career.router)
     application.include_router(resume_optimizer.router)
+    application.include_router(resume_export.router)
     application.include_router(labs.router)
     application.include_router(admin.router)
 
