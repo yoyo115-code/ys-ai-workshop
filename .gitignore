@@ -6,11 +6,15 @@ venv/
 **pycache**/
 *.py[cod]
 .pytest_cache/
+.coverage
+coverage/
 platform.db
 *.db
 *.sqlite
 *.sqlite3
 *.log
+node_modules/
+dist/
 .DS_Store
 .vscode/
 .idea/

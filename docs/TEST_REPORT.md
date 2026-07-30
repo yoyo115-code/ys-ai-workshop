@@ -1,5 +1,7 @@
 # Nova AI 智能工作台 - 测试报告
 
+> 历史基线报告：记录 monorepo 重构前的原型验证。当前自动化回归测试位于 `tests/backend/`，执行方法见根 README。
+
 **测试日期**：2026-06-18  
 **测试环境**：macOS · Python 3 · FastAPI · SQLite · DeepSeek  
 **服务地址**：http://127.0.0.1:8001  

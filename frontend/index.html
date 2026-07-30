@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="api-base-url" content="" />
+  <title>Y's AI Workshop</title>
+
+  <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+
+<body>
+  <div id="app">
+    <header id="header">
+      <div class="brand-area">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" role="img">
+            <path d="M16 3L19.2 11.2L28 13.4L20.8 18.8L21.4 28L16 20.8L10.6 28L11.2 18.8L4 13.4L12.8 11.2L16 3Z" fill="rgba(255,255,255,0.94)" />
+            <path d="M16 9.5L17.6 13.7L22 14.8L18.4 17.4L18.7 22L16 18.4L13.3 22L13.6 17.4L10 14.8L14.4 13.7L16 9.5Z" fill="#5048e5" />
+          </svg>
+        </div>
+
+        <div class="brand-text">
+          <div class="brand-kicker">Y's AI Workshop</div>
+          <h1>Y's AI Workshop</h1>
+          <p>AI-powered career and productivity workspace</p>
+        </div>
+      </div>
+
+      <aside class="service-status" aria-label="账户状态">
+        <div class="status-label"><span class="status-dot"></span><span id="status-text">请登录后使用</span></div>
+        <div class="status-meta">FastAPI 后端 · SQLite 用户数据</div>
+        <div id="login-panel" class="auth-panel">
+          <div class="auth-fields">
+            <input id="display-name" autocomplete="name" placeholder="姓名" aria-label="姓名" hidden>
+            <input id="username" autocomplete="username" placeholder="账号" aria-label="账号">
+            <input id="password" type="password" autocomplete="current-password" placeholder="密码" aria-label="密码">
+            <input id="confirm-password" type="password" autocomplete="new-password" placeholder="确认密码" aria-label="确认密码" hidden>
+          </div>
+          <div class="auth-actions">
+            <button id="login-btn" class="auth-button" type="button">登录</button>
+            <button id="auth-switch-btn" class="auth-button auth-switch-button" type="button">注册新账号</button>
+          </div>
+          <div id="auth-message" class="auth-message">请输入账号密码，或注册新账号。</div>
+        </div>
+        <div id="user-panel" class="user-summary" hidden>
+          <div><strong id="current-user">-</strong><span id="current-role" class="auth-message">-</span></div>
+          <button id="logout-btn" class="auth-button" type="button">退出</button>
+        </div>
+      </aside>
+    </header>
+
+    <div class="workspace-shell">
+      <nav id="tab-nav" aria-label="功能导航">
+        <button class="tab-btn active" type="button" onclick="switchTab('resume')" data-tab="resume">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M8 6h8M8 10h8M8 14h5" />
+              <path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">简历优化</span>
+            <span class="tab-copy">提炼经历与表达亮点</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('copywrite')" data-tab="copywrite">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M4 19.5V20h.5L15.8 8.7l-1.5-1.5L4 17.5v2Z" />
+              <path d="M13.6 5.9l1.5-1.5a2.1 2.1 0 0 1 3 3l-1.5 1.5" />
+              <path d="M5 6h5M5 10h3" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">文案生成</span>
+            <span class="tab-copy">快速生成场景短文案</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('translate')" data-tab="translate">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M4 5h9M9 3v2M7 5c.7 3.2 2.6 5.7 5.5 7.5" />
+              <path d="M11 5c-.5 2.7-2.2 5.2-5 7" />
+              <path d="M14 21l4-10 4 10M15.3 18h5.4" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">翻译助手</span>
+            <span class="tab-copy">中英文互译与润色</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('pdf')" data-tab="pdf">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+              <path d="M14 3v5h5M8 13h8M8 17h5" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">PDF 摘要</span>
+            <span class="tab-copy">上传文档提取要点</span>
+          </span>
+        </button>
+
+        <button class="tab-btn" type="button" onclick="switchTab('csv')" data-tab="csv">
+          <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+              <path d="M4 9h16M4 15h16M10 9v12M16 9v12" />
+            </svg>
+          </span>
+          <span>
+            <span class="tab-title">CSV 预览</span>
+            <span class="tab-copy">理解表格结构与字段</span>
+          </span>
+        </button>
+
+
+        <button class="tab-btn" id="admin-tab" type="button" onclick="switchTab('admin')" data-tab="admin" hidden>
+          <span class="tab-icon" aria-hidden="true">⌁</span>
+          <span><span class="tab-title">后台数据</span><span class="tab-copy">账号使用统计与明细</span></span>
+        </button>
+      </nav>
+
+      <main class="panel-stack">
+        <section id="panel-resume" class="panel active" aria-labelledby="resume-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="resume-title">简历优化</h2>
+              <p class="panel-desc">粘贴简历片段或项目经历，AI 将帮助你强化结果表达、行动动词和岗位匹配度。</p>
+            </div>
+            <div class="panel-badge">JSON 字段：text</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>输入内容</span>
+                <span class="card-hint">建议包含岗位、职责和成果</span>
+              </div>
+              <textarea id="resume-input" placeholder="例如：负责公司后端开发工作，参与接口设计和数据库维护…"></textarea>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="resume-btn" type="button" onclick="submitText('resume')">开始优化</button>
+            </div>
+
+            <div class="output-card" id="resume-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="resume-output" class="output-area placeholder">优化建议将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-copywrite" class="panel" aria-labelledby="copywrite-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="copywrite-title">文案生成</h2>
+              <p class="panel-desc">描述产品、受众、渠道或语气，AI 将生成适合营销、社媒或活动场景的短文案。</p>
+            </div>
+            <div class="panel-badge">JSON 字段：scene</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>场景描述</span>
+                <span class="card-hint">说清产品、卖点和语气</span>
+              </div>
+              <textarea id="copywrite-input" placeholder="例如：给一款低糖夏日奶茶写朋友圈文案，语气清爽、有记忆点…"></textarea>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="copywrite-btn" type="button" onclick="submitText('copywrite')">生成文案</button>
+            </div>
+
+            <div class="output-card" id="copywrite-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="copywrite-output" class="output-area placeholder">生成的文案将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-translate" class="panel" aria-labelledby="translate-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="translate-title">翻译助手</h2>
+              <p class="panel-desc">输入中文或英文，AI 会自动识别翻译方向，并尽量保持自然、准确和适合上下文的表达。</p>
+            </div>
+            <div class="panel-badge">JSON 字段：text</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>待翻译文本</span>
+                <span class="card-hint">支持长文本滚动输入</span>
+              </div>
+              <textarea id="translate-input" placeholder="输入需要翻译或润色的文本…"></textarea>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="translate-btn" type="button" onclick="submitText('translate')">翻译 / 润色</button>
+            </div>
+
+            <div class="output-card" id="translate-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="translate-output" class="output-area placeholder">翻译结果将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-pdf" class="panel" aria-labelledby="pdf-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="pdf-title">PDF 摘要</h2>
+              <p class="panel-desc">上传 PDF 文件，AI 将读取文档内容并生成核心摘要，适合快速理解资料和报告。</p>
+            </div>
+            <div class="panel-badge">FormData 字段：file</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>上传文件</span>
+                <span class="card-hint">仅支持 .pdf</span>
+              </div>
+              <label class="upload-area" for="pdf-file">
+                <input type="file" id="pdf-file" accept=".pdf,application/pdf" onchange="onFileChosen('pdf')" />
+                <span class="upload-content">
+                  <span class="upload-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                      <path d="M14 3v5h5M8 13h8M8 17h5" />
+                    </svg>
+                  </span>
+                  <span class="upload-hint">点击选择文件 · <em>PDF 文档</em></span>
+                  <span class="file-chosen" id="pdf-file-name">尚未选择文件</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="pdf-btn" type="button" onclick="submitFile('pdf')">生成摘要</button>
+            </div>
+
+            <div class="output-card" id="pdf-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="pdf-output" class="output-area placeholder">摘要要点将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-csv" class="panel" aria-labelledby="csv-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="csv-title">CSV 预览</h2>
+              <p class="panel-desc">上传 CSV 表格，AI 将预览数据结构、字段含义和可能的分析方向，方便你快速判断数据价值。</p>
+            </div>
+            <div class="panel-badge">FormData 字段：file</div>
+          </div>
+
+          <div class="work-grid">
+            <div class="input-card">
+              <div class="card-label">
+                <span>上传文件</span>
+                <span class="card-hint">仅支持 .csv</span>
+              </div>
+              <label class="upload-area" for="csv-file">
+                <input type="file" id="csv-file" accept=".csv,text/csv" onchange="onFileChosen('csv')" />
+                <span class="upload-content">
+                  <span class="upload-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+                      <path d="M4 9h16M4 15h16M10 9v12M16 9v12" />
+                    </svg>
+                  </span>
+                  <span class="upload-hint">点击选择文件 · <em>CSV 表格</em></span>
+                  <span class="file-chosen" id="csv-file-name">尚未选择文件</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="action-row">
+              <button class="action-btn" id="csv-btn" type="button" onclick="submitFile('csv')">分析表格</button>
+            </div>
+
+            <div class="output-card" id="csv-output-card">
+              <div class="card-label">
+                <span class="output-title">AI 输出结果</span>
+                <span class="card-hint">纯文本展示</span>
+              </div>
+              <div id="csv-output" class="output-area placeholder">分析结果将显示在这里</div>
+            </div>
+          </div>
+        </section>
+
+
+        <section id="panel-admin" class="panel" aria-labelledby="admin-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="admin-title">用户数据后台</h2>
+              <p class="panel-desc">按账号查看工具调用次数、成功率、最近活动和请求明细。</p>
+            </div>
+            <div class="panel-badge">SQLite</div>
+          </div>
+
+          <div class="admin-summary-grid">
+            <div class="metric"><span>账号数量</span><strong id="total-users">0</strong></div>
+            <div class="metric"><span>总调用次数</span><strong id="total-requests">0</strong></div>
+            <div class="metric"><span>失败次数</span><strong id="total-errors">0</strong></div>
+          </div>
+
+          <div class="action-row"><button id="refresh-admin-btn" class="action-btn" type="button">刷新数据</button></div>
+          <h3>账号汇总</h3>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>调用</th><th>成功</th><th>失败</th><th>最近活动</th></tr></thead>
+              <tbody id="user-stats-body"><tr><td colspan="7">暂无数据</td></tr></tbody>
+            </table>
+          </div>
+
+          <h3 style="margin-top: 22px;">最近请求</h3>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead><tr><th>时间</th><th>用户</th><th>功能</th><th>状态</th><th>耗时</th><th>内容摘要</th></tr></thead>
+              <tbody id="activity-logs-body"><tr><td colspan="6">暂无数据</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/assets/js/config.js"></script>
+  <script src="/assets/js/app.js"></script>
+</body>
+</html>
