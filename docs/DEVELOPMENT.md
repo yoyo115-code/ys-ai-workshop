@@ -11,6 +11,8 @@ cp .env.example .env
 
 从仓库根目录维护 `.env`。禁止提交真实密钥、数据库、Session 或活动日志。
 
+Resume Export 默认把运行文件写到 `backend/generated/`，可用 `RESUME_EXPORT_DIR` 切换到受控私有目录。不要把用户导出的 DOCX/PDF 放入源码或 Git。
+
 ## 启动后端和页面
 
 ```bash
@@ -76,7 +78,16 @@ YS_AI_E2E_BASE_URL=http://127.0.0.1:8000 \
 python3 -m unittest tests.browser.test_frontend_delivery_e2e -v
 ```
 
-用例检查主样式、认证面板、Career Match 默认页、Resume Optimizer/AI Labs 导航、SVG 尺寸、横向溢出、资源失败和控制台 error。
+用例检查主样式、认证面板、Career Match 默认页、Resume Optimizer/AI Labs 导航、Resume Export 入口与两模板/两格式契约、SVG 尺寸、横向溢出、资源失败和控制台 error。
+
+Resume Export 的手动验收顺序：
+
+1. 登录后打开一条已完成 Career Match 的 Resume Optimizer。
+2. 选择任意 ResumeVersion，点击 `Export`。
+3. 核对结构化字段、预览、模板、格式、纸张和语言。
+4. 分别生成 DOCX 和 PDF，确认状态为 `ready`，可重复下载，文件名含姓名/公司/岗位/版本。
+5. 用 Word、WPS 或 LibreOffice 打开 DOCX，并用 PDF 阅读器核对中英文、项目符号和分页。
+6. 删除测试导出，确认历史和物理文件同步清理。
 
 ## 排查 CSS / JavaScript 404
 
@@ -105,7 +116,9 @@ node --check frontend/assets/js/app.js
 - API 路径变化需要同步 `docs/API.md` 和回归测试。
 - Schema 变化需要新增 migration，而不是只修改运行数据库。
 - Career Match 活动日志只允许记录申请 ID 和技术元数据，禁止传入简历、JD 或模型完整响应。
+- 文档渲染只能使用确认后 `StructuredResume`；导出不得调用 LLM 补全或润色。
+- 下载名不得作为内部路径；文件读写必须限定在 `RESUME_EXPORT_DIR`。
 
 ## SQLite migration 检查
 
-`database/schema.sql` 用于全新数据库，`database/migrations/0001_career_match.sql` 用于审查本阶段的增量。可以在系统临时目录创建空数据库，依次执行 schema 和 migration，确认两者均可重复执行；不要对仓库中的真实运行数据库做检查。
+`database/schema.sql` 用于全新数据库，`database/migrations/0001_career_match.sql`、`0002_resume_versioning.sql` 和 `0003_resume_exports.sql` 依次记录增量。可以在系统临时目录创建空数据库，执行完整 schema 后再重复执行 migration，确认表与索引幂等；不要对仓库中的真实运行数据库做检查。

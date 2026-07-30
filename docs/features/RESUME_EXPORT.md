@@ -1,5 +1,7 @@
 # Resume Export & Delivery
 
+状态：Phase 4 已实现，v0.4.0 待发布。
+
 ## 用户问题
 
 Career Match 和 Resume Optimizer 已能生成、比较和恢复确认后的文本版本，但用户仍需手工复制到 Word 才能投递。Phase 4 的目标是把指定 `ResumeVersion` 转换为可检查的结构化简历，并从同一份结构化数据稳定生成 DOCX 和 PDF。
@@ -65,7 +67,7 @@ StructuredResume
   additional_information[]
 ```
 
-`original_text` 始终保留 ResumeVersion 原文。解析器只识别明确标题、联系方式和原有行，不推断事实；无法可靠形成内容区块时返回明确 `structure_unavailable`，前端仍可查看原文。用户编辑后的 Schema 只用于该次导出，并连同来源版本和来源哈希保存，保证可追溯。
+`original_text` 始终保留 ResumeVersion 原文。解析器只识别明确标题、联系方式和原有行，不推断事实；非标准结构返回 `needs_review` 和原文，只有版本为空时才返回 `structure_unavailable`。用户编辑后的 Schema 只用于该次导出，并连同来源版本和来源哈希保存，保证可追溯。
 
 ## 模板设计
 
@@ -105,8 +107,8 @@ StructuredResume
 - 下载名移除路径分隔符、控制字符和非法字符，并限制总长度。
 - 服务只解析位于专用导出根目录内的已记录路径，阻止目录穿越。
 - 导出内容不包含 API Key、Prompt、匹配风险、活动日志或内部 ID。
-- 日志只记录导出 ID、格式、模板、状态和耗时，不保存简历正文。
-- 导出目录、DOCX、PDF 和转换临时文件均被 Git 忽略。
+- 当前不为 Resume Export 写入 activity log，因此不会把简历正文、结构化快照或文件内容写入日志预览。
+- 默认导出目录 `backend/generated/` 被 Git 忽略；自定义 `RESUME_EXPORT_DIR` 必须位于受控私有路径，不得指向源码目录。
 
 ## 状态机
 
@@ -139,9 +141,12 @@ failed -> deleted
 - 数据库：schema、migration、事务与级联关系。
 - 前端：预览、模板/格式选择、生成、下载、失败重试、历史和浏览器回归。
 
+当前验收结果为 86 项后端/静态自动化测试通过，其中 28 项专门覆盖 Resume Export；另有 5 项可选 Playwright 契约和一次真实 HTTP 浏览器闭环验收。
+
 ## 已知限制
 
 - 确定性解析依赖常见章节标题；非标准自由排版可能需要用户手工整理字段。
 - 第一版保存结构化内容与段落顺序，不恢复原始字体、列布局、照片或图形。
 - PDF 使用运行环境中可检测的 Unicode 字体；缺少可用字体时会明确失败。
 - 本地文件存储只适合单实例原型，公开部署前需要对象存储、定期清理和恶意文件扫描。
+- `expires_at` 已预留，但第一版尚未运行自动过期清理任务。

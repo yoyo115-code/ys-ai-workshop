@@ -1,6 +1,6 @@
 # ADR-004: Resume document rendering
 
-- 状态：Accepted for Phase 4 implementation
+- 状态：Accepted and implemented in Phase 4
 - 日期：2026-07-30
 
 ## 背景
@@ -46,13 +46,13 @@ LibreOffice 只用于开发阶段 DOCX 视觉 QA，不是运行时 PDF 依赖。
 ### professional
 
 - 单栏；A4/Letter；0.65–0.75 英寸页边距。
-- Arial/Calibri/Noto Sans 类字体，姓名 20–22 pt，章节标题 11–12 pt，正文 9.5–10.5 pt。
+- Arial 拉丁字体与明确 CJK 字体提示，姓名 20–22 pt，章节标题 11–12 pt，正文 9.5–10.5 pt。
 - 深蓝章节标题、细分隔线、稳定项目符号；不使用照片、技能条或装饰图形。
 
 ### minimal_ats
 
 - 单栏；A4/Letter；0.7–0.8 英寸页边距。
-- Arial/Calibri/Noto Sans 类字体，全黑；姓名 18–20 pt，章节标题 11 pt，正文 10 pt。
+- Arial 拉丁字体与明确 CJK 字体提示，全黑；姓名 18–20 pt，章节标题 11 pt，正文 10 pt。
 - 不使用表格、文本框、多栏、图标、页眉页脚装饰或背景色。
 
 ## API 与状态
@@ -80,3 +80,9 @@ API 负责预览、生成、历史、详情、下载和删除。状态为 `pendi
 - 优点：内容来源清楚、两种格式一致、测试可确定、PDF 无外部转换依赖。
 - 代价：需要维护两个渲染器；复杂原始布局不会保留；CJK PDF 依赖运行环境字体。
 - 后续：公开部署时把文件存储抽象迁移到对象存储，并加入过期清理、病毒扫描和异步任务。
+
+## 实现验证
+
+- DOCX 由 `python-docx` 直接生成；测试回读 Open XML 文本、标题样式、项目符号和 Minimal ATS 无表格契约。
+- PDF 由 ReportLab 直接生成；测试回读中英文、检查长内容分页，并覆盖 CJK/渲染器不可用错误。
+- Professional 中文与 Minimal ATS 英文的 DOCX/PDF 已渲染为页面图像人工检查。开发环境的第三方 LibreOffice 若无法发现 macOS 系统字体，可能显示方框；使用 macOS 系统渲染器检查同一 DOCX 可确认中文内容与布局正常。发布到新平台前仍需做 Word/WPS/LibreOffice 抽样。

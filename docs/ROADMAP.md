@@ -34,13 +34,15 @@
 
 ## v0.4 — Resume Export & Delivery
 
-状态：Phase 4 开发中
+状态：已实现，v0.4.0 待发布
 
 - 从确认的 ResumeVersion 生成结构化预览。
 - `professional` 与 `minimal_ats` 两个稳定模板。
 - DOCX/PDF 生成、历史、下载、删除和文件安全。
 - 保留可控段落层级，不承诺还原原始文件像素级版式。
 - 增加内容一致性、隐私、路径安全和浏览器验收测试。
+- 以确定性 Schema 驱动 DOCX/PDF，不使用 LLM 补全缺失信息。
+- 导出历史、重复下载、删除、失败记录和用户数据隔离已完成。
 
 设计以 [Resume Export 规划](features/RESUME_EXPORT.md) 和 [ADR-004](decisions/ADR-004-resume-document-rendering.md) 为准。
 
@@ -52,4 +54,4 @@
 - 面试准备与 STAR 框架。
 - PostgreSQL、异步任务和浏览器测试 CI 集成。
 
-分享链接、OCR、新后台和新 AI Labs 当前不在 Phase 3 范围内。
+分享链接、OCR、新后台和新 AI Labs 当前不在 Phase 4 范围内。

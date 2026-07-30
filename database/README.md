@@ -15,18 +15,19 @@ Y's AI Workshop 当前使用 SQLite 保存本地原型数据。后端从 `schema
 - `resume_versions`：不可变的结构化文本快照、父版本和哈希。
 - `resume_suggestions`：句子级建议、双向证据、风险、决策状态和 Prompt 版本。
 - `resume_suggestion_events`：建议决策和手工编辑的追加审计事件。
+- `resume_exports`：归属用户与 ResumeVersion 的导出状态、模板、格式、安全文件名、私有对象名、确认后结构化快照和内容哈希。
 
 所有 Session 和调用日志都属于运行数据。默认数据库路径由 `DATABASE_URL` 控制；未配置时，从 `backend/` 运行会使用 `backend/platform.db`。
 
 ## Migrations 和 Seeds
 
-- `migrations/0001_career_match.sql` 记录 Career Match 增量，`migrations/0002_resume_versioning.sql` 记录版本化简历增量；`schema.sql` 始终代表新环境的完整结构。
+- `migrations/0001_career_match.sql` 记录 Career Match 增量，`migrations/0002_resume_versioning.sql` 记录版本化简历增量，`migrations/0003_resume_exports.sql` 记录文档导出增量；`schema.sql` 始终代表新环境的完整结构。
 - `seeds/` 只允许保存不含账号密码的非敏感字典数据；当前没有必须的 seed。
 - 初始管理员只通过 `INITIAL_ADMIN_USERNAME` 和 `INITIAL_ADMIN_PASSWORD` 创建，不进入 SQL 文件。
 
 ## 为什么不能提交数据库文件
 
-SQLite 文件可能包含密码摘要、Session token、用户输入、模型输出预览和调用错误。提交 `platform.db`、`*.db`、`*.sqlite` 或 `*.sqlite3` 会泄露运行数据并制造不可审计的环境差异，因此这些文件必须保持在 Git 之外。
+SQLite 文件可能包含密码摘要、Session token、用户输入、模型输出预览、结构化导出快照和调用错误。提交 `platform.db`、`*.db`、`*.sqlite` 或 `*.sqlite3` 会泄露运行数据并制造不可审计的环境差异，因此这些文件必须保持在 Git 之外。生成的 DOCX/PDF 也是用户数据，保存在 `RESUME_EXPORT_DIR` 且不进入 Git。
 
 ## PostgreSQL 计划
 

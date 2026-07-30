@@ -2,6 +2,32 @@
 
 All notable changes to Y's AI Workshop are documented in this file.
 
+## [v0.4.0-draft] - 2026-07-30
+
+### Added
+
+- Deterministic `StructuredResume` preview traced to an immutable ResumeVersion.
+- Editable export snapshot without changing the source ResumeVersion.
+- `professional` and `minimal_ats` templates for A4 or Letter documents.
+- Direct DOCX generation with stable headings, bullets, margins and bilingual content.
+- Direct PDF generation from the same confirmed schema, including explicit CJK font capability errors.
+- Authenticated export history, repeat download, deletion and clear failed states.
+- Safe download filenames, private random object keys, atomic writes, hashes and traversal checks.
+
+### Testing
+
+- 86 backend and static-delivery automated tests, including 28 Resume Export tests.
+- 5 optional Playwright browser regression tests.
+- Live HTTP browser acceptance for login, preview, DOCX/PDF generation, download UI, desktop and 390 px layouts.
+- Parsed DOCX/PDF content checks and manual document rendering review for both templates and Chinese/English content.
+
+### Known limitations
+
+- Export does not reproduce the original uploaded DOCX/PDF layout, columns, images or typography.
+- No OCR, Cover Letter, interview workflow, public sharing or deployment.
+- Export storage is local and synchronous; automatic expiry cleanup and object storage are not implemented.
+- CJK PDF rendering requires a supported Unicode font in the runtime environment.
+
 ## [v0.3.0] - 2026-07-30
 
 ### Added
