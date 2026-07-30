@@ -83,6 +83,19 @@ class FrontendDeliveryBrowserTests(unittest.TestCase):
         self.page.locator('[data-tab="resume"]').click()
         self.assertTrue(self.page.locator("#panel-resume").is_visible())
 
+    def test_resume_export_entry_and_template_contract(self) -> None:
+        self.page.locator('[data-tab="optimizer"]').click()
+        self.assertTrue(self.page.locator("#optimizer-export-btn").is_visible())
+        self.assertTrue(self.page.locator("#resume-export-workspace").is_hidden())
+        self.assertEqual(
+            self.page.locator("#export-template-select option").all_text_contents(),
+            ["Professional", "Minimal ATS"],
+        )
+        self.assertEqual(
+            self.page.locator("#export-format-select option").all_text_contents(),
+            ["DOCX", "PDF"],
+        )
+
     def test_assets_and_console_have_no_blocking_errors(self) -> None:
         self.assertEqual(self.failed_assets, [])
         self.assertEqual(self.console_errors, [])
