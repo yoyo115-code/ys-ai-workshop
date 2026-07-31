@@ -48,13 +48,17 @@
 
 ## v0.5 — Deployable Private Beta
 
-状态：In progress
+状态：Completed
 
 - PostgreSQL production 数据层与可重复 migration。
 - Local/S3-compatible 存储抽象、限时下载与过期清理。
 - 邀请制注册、生产配置校验和 live/ready 探针。
 - 用户数据删除、日志最小化、Docker 与 PostgreSQL CI。
-- 本阶段交付可部署能力，不自动创建云资源或处理真实用户数据。
+- Production 关闭 AI Labs，DeepSeek-only 默认 Provider 路径。
+- 四类持久化 UTC 日额度、简历/JD 输入上限和管理员显式豁免规则。
+- Production Secure Cookie，前端不保存 Session Token。
+- Render Blueprint 定义 Singapore Docker Web Service、PostgreSQL、pre-deploy migration 和手动 Secret。
+- 本阶段交付可部署配置，不声称已创建云资源或处理真实用户数据。
 
 设计以 [ADR-005](decisions/ADR-005-production-beta-architecture.md)、[Deployment](DEPLOYMENT.md) 和 [Privacy](PRIVACY.md) 为准。
 
@@ -63,6 +67,7 @@
 状态：Next
 
 - 在人工创建的受控环境进行小规模邀请测试。
+- 先以 3–5 名测试者验证完整 Career 流程、额度提示、删除和 7 天保留策略。
 - 完成 Provider 数据处理条款、备份窗口和告警负责人确认。
 - 收集去标识化的流程反馈和可靠性指标，不扩张功能范围。
 

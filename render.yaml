@@ -1,0 +1,80 @@
+services:
+  - type: web
+    name: ys-ai-workshop
+    runtime: docker
+    plan: starter
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    autoDeployTrigger: checksPass
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ys-ai-workshop-db
+          property: connectionString
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: REGISTRATION_MODE
+        value: invite_only
+      - key: AI_LABS_ENABLED
+        value: "false"
+      - key: PRIMARY_LLM_PROVIDER
+        value: deepseek
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SESSION_COOKIE_NAME
+        value: ys_ai_session
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_HOURS
+        value: "12"
+      - key: EXPORT_RETENTION_DAYS
+        value: "7"
+      - key: S3_PRESIGNED_URL_SECONDS
+        value: "300"
+      - key: CAREER_ANALYSIS_DAILY_LIMIT
+        value: "2"
+      - key: SUGGESTION_GENERATION_DAILY_LIMIT
+        value: "2"
+      - key: SUGGESTION_REGENERATION_DAILY_LIMIT
+        value: "8"
+      - key: RESUME_EXPORT_DAILY_LIMIT
+        value: "5"
+      - key: MAX_RESUME_CHARACTERS
+        value: "20000"
+      - key: MAX_JOB_DESCRIPTION_CHARACTERS
+        value: "20000"
+      - key: ADMIN_DAILY_LIMIT_EXEMPT
+        value: "false"
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: INITIAL_ADMIN_USERNAME
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+databases:
+  - name: ys-ai-workshop-db
+    plan: basic-256mb
+    region: singapore
+    postgresMajorVersion: "17"
+    databaseName: ys_ai_workshop
+    user: ys_ai_workshop
+    ipAllowList: []

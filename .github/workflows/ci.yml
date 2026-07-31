@@ -40,14 +40,12 @@ jobs:
           node-version: "22"
       - name: Install dependencies
         run: python -m pip install -r backend/requirements-dev.txt
-      - name: SQLite test suite
-        run: PYTHONPATH=backend python -m unittest discover -s tests/backend -v
-      - name: PostgreSQL migration and integration
+      - name: PostgreSQL migration
         run: |
           cd backend
           APP_ENV=test DATABASE_URL="$TEST_POSTGRES_URL" alembic upgrade head
-          cd ..
-          PYTHONPATH=backend python -m unittest tests.backend.test_postgresql_integration -v
+      - name: Full backend suite with PostgreSQL integration
+        run: PYTHONPATH=backend python -m unittest discover -s tests/backend -v
       - name: Python syntax
         run: python -m compileall -q backend/app backend/alembic tests/backend
       - name: Frontend syntax

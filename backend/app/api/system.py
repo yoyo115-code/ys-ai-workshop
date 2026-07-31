@@ -43,10 +43,18 @@ def readiness(request: Request, response: Response) -> dict[str, object]:
 @router.get("/config/public")
 def public_configuration(request: Request) -> dict[str, object]:
     settings = request.app.state.settings
+    session_token = request.cookies.get(settings.session_cookie_name)
+    session_active = (
+        request.app.state.auth_service.current_user(session_token) is not None
+        if session_token
+        else False
+    )
     return {
         "environment": settings.app_env,
         "private_beta": settings.is_production,
         "registration_mode": settings.registration_mode,
+        "ai_labs_enabled": settings.ai_labs_enabled,
+        "session_active": session_active,
         "export_retention_days": settings.export_retention_days,
         "privacy_document": "#privacy-notice",
     }

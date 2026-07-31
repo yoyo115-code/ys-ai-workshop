@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app.models.domain import PublicUser
+from app.core.config import Settings
 from app.prompts.resume_suggestion_v1 import (
     PROMPT_VERSION,
     build_resume_suggestion_prompt,
@@ -23,6 +24,11 @@ from app.repositories.workshop import WorkshopRepository
 from app.schemas.resume_optimizer import ResumeSuggestionPayload, UpdateSuggestionRequest
 from app.services.auth import utc_now
 from app.services.llm import LLMProvider
+from app.services.usage import (
+    DailyUsageService,
+    SUGGESTION_GENERATION,
+    SUGGESTION_REGENERATION,
+)
 
 
 SUGGESTION_PROVIDER = "deepseek"
@@ -89,11 +95,15 @@ class ResumeOptimizerService:
         career_repository: CareerRepository,
         workshop_repository: WorkshopRepository,
         llm_provider: LLMProvider,
+        daily_usage_service: DailyUsageService,
+        settings: Settings,
     ) -> None:
         self.repository = repository
         self.career_repository = career_repository
         self.workshop_repository = workshop_repository
         self.llm_provider = llm_provider
+        self.daily_usage_service = daily_usage_service
+        self.settings = settings
 
     def get_workspace(
         self, user: PublicUser, application_id: int
@@ -121,6 +131,10 @@ class ResumeOptimizerService:
                 application, resume, version, all_suggestions
             )
 
+        self._validate_input_lengths(
+            version["content"], application["job_description"]
+        )
+
         match_context = self._match_context(application_id)
         prompt = build_resume_suggestion_prompt(
             version["content"],
@@ -130,6 +144,7 @@ class ResumeOptimizerService:
         )
         started = time.perf_counter()
         try:
+            self.daily_usage_service.consume(user, SUGGESTION_GENERATION)
             raw_output = self.llm_provider.generate(prompt, SUGGESTION_PROVIDER)
             payload = self._validate_output(
                 raw_output, version["content"], application["job_description"]
@@ -239,6 +254,9 @@ class ResumeOptimizerService:
         if version is None:
             raise HTTPException(status_code=404, detail="简历版本不存在")
         application = self._application(user, suggestion["application_id"])
+        self._validate_input_lengths(
+            version["content"], application["job_description"]
+        )
         prompt = build_resume_suggestion_prompt(
             version["content"],
             application["job_description"],
@@ -248,6 +266,7 @@ class ResumeOptimizerService:
         )
         started = time.perf_counter()
         try:
+            self.daily_usage_service.consume(user, SUGGESTION_REGENERATION)
             raw_output = self.llm_provider.generate(prompt, SUGGESTION_PROVIDER)
             payload = self._validate_output(
                 raw_output,
@@ -305,6 +324,27 @@ class ResumeOptimizerService:
             metadata={"suggestion_id": created["id"], "regenerated_from": suggestion_id},
         )
         return self._suggestion_response(created)
+
+    def _validate_input_lengths(self, resume_text: str, job_description: str) -> None:
+        for value, limit, input_type, label in (
+            (resume_text, self.settings.max_resume_characters, "resume", "简历"),
+            (
+                job_description,
+                self.settings.max_job_description_characters,
+                "job_description",
+                "岗位 JD",
+            ),
+        ):
+            if len(value) > limit:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "input_too_long",
+                        "input_type": input_type,
+                        "limit": limit,
+                        "message": f"{label}超过 {limit} 字符限制",
+                    },
+                )
 
     def undo_suggestion(
         self, user: PublicUser, suggestion_id: int

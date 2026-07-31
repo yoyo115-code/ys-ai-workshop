@@ -19,6 +19,7 @@ from app.services.auth import utc_now
 from app.services.document_rendering import DocumentRenderError, ResumeDocumentRenderer
 from app.services.resume_structure import ResumeStructureService
 from app.services.storage import StorageError, StorageProvider
+from app.services.usage import DailyUsageService, RESUME_EXPORT
 
 
 class ResumeExportService:
@@ -29,12 +30,14 @@ class ResumeExportService:
         renderer: ResumeDocumentRenderer,
         storage: StorageProvider,
         retention_days: int = 7,
+        daily_usage_service: DailyUsageService | None = None,
     ) -> None:
         self.repository = repository
         self.structure_service = structure_service
         self.renderer = renderer
         self.storage = storage
         self.retention_days = retention_days
+        self.daily_usage_service = daily_usage_service
 
     def preview(self, user: PublicUser, version_id: int) -> dict[str, Any]:
         context = self._version(user, version_id)
@@ -103,6 +106,8 @@ class ResumeExportService:
         now_dt = datetime.now(timezone.utc)
         now = now_dt.isoformat()
         expires_at = (now_dt + timedelta(days=self.retention_days)).isoformat()
+        if self.daily_usage_service is not None:
+            self.daily_usage_service.consume(user, RESUME_EXPORT)
         try:
             record = self.repository.create_export(
                 user["id"],

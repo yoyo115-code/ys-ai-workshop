@@ -1,12 +1,13 @@
 const TABS = ["career", "optimizer", "resume", "copywrite", "translate", "pdf", "csv", "admin"];
-const AUTH_TOKEN_KEY = "nova_auth_token";
 const API_CONFIG = window.YS_AI_CONFIG;
 let currentUser = null;
 let registrationMode = false;
 let publicConfiguration = {
   registration_mode: "open",
   export_retention_days: 7,
-  private_beta: false
+  private_beta: false,
+  ai_labs_enabled: false,
+  session_active: false
 };
 let currentCareerApplicationId = null;
 let optimizerWorkspace = null;
@@ -260,8 +261,6 @@ async function submitFile(type) {
 
 function authHeaders(json = false) {
   const headers = {};
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  if (token) headers["X-Session-Token"] = token;
   if (json) headers["Content-Type"] = "application/json";
   return headers;
 }
@@ -290,6 +289,38 @@ function updateAuthUI() {
   } else if (document.getElementById("panel-admin").classList.contains("active")) {
     switchTab("career");
   }
+  if (!loggedIn) {
+    document.getElementById("daily-usage-summary").textContent = "今日剩余：登录后查看";
+  }
+}
+
+function applyAiLabsAvailability(enabled) {
+  document.getElementById("ai-labs-nav-label").hidden = !enabled;
+  document.querySelectorAll("[data-ai-lab-nav], [data-ai-lab-panel]").forEach(element => {
+    element.hidden = !enabled;
+  });
+  const activeLab = ["resume", "copywrite", "translate", "pdf", "csv"]
+    .some(name => document.getElementById(`panel-${name}`)?.classList.contains("active"));
+  if (!enabled && activeLab) switchTab("career");
+}
+
+async function refreshDailyUsage() {
+  const target = document.getElementById("daily-usage-summary");
+  if (!currentUser) {
+    target.textContent = "今日剩余：登录后查看";
+    return;
+  }
+  try {
+    const response = await fetch(apiUrl(API_CONFIG.endpoints.dailyUsage));
+    if (!response.ok) throw new Error("usage unavailable");
+    const quotas = (await response.json()).quotas || {};
+    const analysis = quotas.career_analysis;
+    const suggestions = quotas.suggestion_generation;
+    const display = value => value?.unlimited ? "不限" : (value?.remaining ?? "-");
+    target.textContent = `今日剩余：分析 ${display(analysis)} · 建议生成 ${display(suggestions)}`;
+  } catch {
+    target.textContent = "今日剩余：暂时无法读取";
+  }
 }
 
 function setRegistrationMode(enabled) {
@@ -313,6 +344,7 @@ async function loadPublicConfiguration() {
     const response = await fetch(apiUrl(API_CONFIG.endpoints.publicConfig));
     if (!response.ok) throw new Error("configuration unavailable");
     publicConfiguration = await response.json();
+    applyAiLabsAvailability(publicConfiguration.ai_labs_enabled !== false);
     const retentionDays = publicConfiguration.export_retention_days || 7;
     document.getElementById("retention-summary").textContent =
       `导出文件默认保留 ${retentionDays} 天；可随时删除申请、简历、导出或账号。`;
@@ -360,10 +392,10 @@ async function submitAuth() {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || (registrationMode ? "注册失败" : "登录失败"));
-    localStorage.setItem(AUTH_TOKEN_KEY, data.token);
     currentUser = data.user;
     setRegistrationMode(false);
     updateAuthUI();
+    await refreshDailyUsage();
     refreshCareerHistory();
   } catch (error) {
     message.textContent = error.message;
@@ -388,7 +420,6 @@ async function deleteAccount() {
     });
     const payload = await getResponsePayload(response);
     if (!response.ok) throw new Error(formatError(response, payload));
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     currentUser = null;
     updateAuthUI();
     renderCareerHistory([]);
@@ -406,7 +437,6 @@ async function logout() {
       headers: authHeaders()
     });
   } finally {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     currentUser = null;
     updateAuthUI();
     renderCareerHistory([]);
@@ -415,10 +445,6 @@ async function logout() {
 }
 
 async function loadCurrentUser() {
-  if (!localStorage.getItem(AUTH_TOKEN_KEY)) {
-    updateAuthUI();
-    return;
-  }
   try {
     const response = await fetch(apiUrl(API_CONFIG.endpoints.auth.me), {
       headers: authHeaders()
@@ -426,11 +452,13 @@ async function loadCurrentUser() {
     if (!response.ok) throw new Error("session expired");
     currentUser = (await response.json()).user;
   } catch {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     currentUser = null;
   }
   updateAuthUI();
-  if (currentUser) refreshCareerHistory();
+  if (currentUser) {
+    await refreshDailyUsage();
+    refreshCareerHistory();
+  }
 }
 
 const CAREER_GROUPS = [
@@ -573,6 +601,7 @@ async function analyzeCareerApplication(applicationId, retry = false) {
     document.getElementById("career-limitations").textContent = "模型调用或结构校验失败，请重试。";
     await refreshCareerHistory();
   }
+  await refreshDailyUsage();
 }
 
 function renderCareerAnalysis(analysis) {
@@ -907,6 +936,7 @@ async function generateOptimizerSuggestions(retry = false) {
     setOptimizerMessage(error.message || "建议生成失败。", "error", true);
   } finally {
     setButtonLoading(button, false);
+    await refreshDailyUsage();
   }
 }
 
@@ -977,6 +1007,8 @@ async function regenerateOptimizerSuggestion(suggestionId) {
     setOptimizerMessage("新建议已生成；旧建议标记为 Superseded 并继续保留。", "success");
   } catch (error) {
     setOptimizerMessage(error.message || "单条建议重新生成失败。", "error", true);
+  } finally {
+    await refreshDailyUsage();
   }
 }
 
@@ -1353,6 +1385,7 @@ async function createResumeExport() {
     setResumeExportMessage(error.message || "导出失败，未保留不完整文件。", "error", true);
   } finally {
     setButtonLoading(button, false);
+    await refreshDailyUsage();
   }
 }
 
@@ -1551,4 +1584,7 @@ document.getElementById("password").addEventListener("keydown", (event) => {
 document.getElementById("confirm-password").addEventListener("keydown", (event) => {
   if (event.key === "Enter") submitAuth();
 });
-loadPublicConfiguration().finally(loadCurrentUser);
+loadPublicConfiguration().then(() => {
+  if (publicConfiguration.session_active) loadCurrentUser();
+  else updateAuthUI();
+});

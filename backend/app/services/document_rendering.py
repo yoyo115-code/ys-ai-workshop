@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import html
 import re
+import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -49,6 +51,8 @@ CJK_FONT_CANDIDATES = (
     Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
 )
 DOCX_CJK_FONT = "Hiragino Sans GB"
+DOCX_METADATA_TIMESTAMP = datetime(2000, 1, 1, tzinfo=timezone.utc)
+DOCX_ARCHIVE_TIMESTAMP = (2000, 1, 1, 0, 0, 0)
 
 
 class DocumentRenderError(Exception):
@@ -92,12 +96,26 @@ class ResumeDocumentRenderer:
         document = Document()
         document.core_properties.author = ""
         document.core_properties.last_modified_by = ""
+        document.core_properties.created = DOCX_METADATA_TIMESTAMP
+        document.core_properties.modified = DOCX_METADATA_TIMESTAMP
+        document.core_properties.revision = 1
         body_font = DOCX_CJK_FONT if CJK_RE.search(resume.model_dump_json()) else "Arial"
         self._configure_docx(document, template_key, paper_size, body_font)
         self._docx_header(document, resume, template_key)
         self._docx_sections(document, resume, template_key, language)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         document.save(output_path)
+        self._normalize_docx_archive(output_path)
+
+    @staticmethod
+    def _normalize_docx_archive(output_path: Path) -> None:
+        with zipfile.ZipFile(output_path, "r") as source:
+            entries = [(info, source.read(info.filename)) for info in source.infolist()]
+        with zipfile.ZipFile(output_path, "w") as target:
+            for info, content in entries:
+                info.date_time = DOCX_ARCHIVE_TIMESTAMP
+                info.extra = b""
+                target.writestr(info, content)
 
     def render_pdf(
         self,

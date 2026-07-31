@@ -50,7 +50,8 @@ class MigrationTests(unittest.TestCase):
                 ).fetchone()[0]
         self.assertIn("resume_exports", tables)
         self.assertIn("invite_codes", tables)
-        self.assertEqual(revision, "20260731_02")
+        self.assertIn("daily_usage", tables)
+        self.assertEqual(revision, "20260731_03")
 
     def test_postgresql_offline_migration_has_no_sqlite_statements(self) -> None:
         output = io.StringIO()
@@ -66,6 +67,7 @@ class MigrationTests(unittest.TestCase):
             command.upgrade(alembic_config(output), "head", sql=True)
         sql = output.getvalue()
         self.assertIn("CREATE TABLE invite_codes", sql)
+        self.assertIn("CREATE TABLE daily_usage", sql)
         self.assertNotIn("PRAGMA", sql)
         self.assertNotIn("AUTOINCREMENT", sql)
 
@@ -76,6 +78,13 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("code_hash", migration)
         self.assertNotIn("plaintext", migration.lower())
         self.assertIn("expires_at", migration)
+
+    def test_daily_usage_migration_has_atomic_identity(self) -> None:
+        migration = (
+            PROJECT_ROOT / "database" / "migrations" / "0005_launch_guardrails.sql"
+        ).read_text(encoding="utf-8")
+        self.assertIn("PRIMARY KEY (user_id, usage_date, usage_type)", migration)
+        self.assertIn("used_count", migration)
 
 
 if __name__ == "__main__":

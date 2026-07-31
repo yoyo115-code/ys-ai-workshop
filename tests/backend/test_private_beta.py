@@ -206,6 +206,7 @@ class PrivateBetaTests(unittest.TestCase):
         response = self.client.get("/config/public")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["registration_mode"], "open")
+        self.assertFalse(response.json()["session_active"])
         self.assertNotIn("secret", response.text.lower())
 
     def test_production_configuration_rejects_sqlite_fallback(self) -> None:
@@ -230,10 +231,11 @@ class PrivateBetaTests(unittest.TestCase):
             s3_access_key_id="synthetic-id",
             s3_secret_access_key="synthetic-secret",
             deepseek_api_key="synthetic-deepseek",
-            anthropic_api_key="synthetic-anthropic",
             session_secret="synthetic-session-secret-1234567890",
             cors_origins=("https://beta.invalid",),
             registration_mode="invite_only",
+            ai_labs_enabled=False,
+            session_cookie_secure=True,
         )
         settings.validate()
 

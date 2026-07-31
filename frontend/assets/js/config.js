@@ -41,7 +41,8 @@
         logs: "/admin/logs"
       }),
       health: "/health",
-      publicConfig: "/config/public"
+      publicConfig: "/config/public",
+      dailyUsage: "/usage/daily"
     })
   });
 

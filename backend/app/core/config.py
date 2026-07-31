@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -27,11 +28,30 @@ def _positive_int(value: str, default: int) -> int:
     return parsed if parsed > 0 else default
 
 
+def _nonnegative_int(value: str, default: int) -> int:
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= 0 else default
+
+
+def _parse_bool(value: str, default: bool) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 @dataclass(frozen=True)
 class Settings:
     app_env: str = "development"
     deepseek_api_key: str = ""
     anthropic_api_key: str = ""
+    primary_llm_provider: str = "deepseek"
+    ai_labs_enabled: bool = True
     initial_admin_username: str = ""
     initial_admin_password: str = ""
     database_url: str = "sqlite:///./platform.db"
@@ -40,6 +60,8 @@ class Settings:
     schema_path: Path = SCHEMA_PATH
     max_upload_bytes: int = 20 * 1024 * 1024
     session_hours: int = 12
+    session_cookie_name: str = "ys_ai_session"
+    session_cookie_secure: bool = False
     llm_timeout_seconds: int = 45
     llm_max_retries: int = 2
     resume_export_dir: Path = DEFAULT_RESUME_EXPORT_DIR
@@ -53,6 +75,13 @@ class Settings:
     registration_mode: str = "open"
     export_retention_days: int = 7
     session_secret: str = ""
+    career_analysis_daily_limit: int = 2
+    suggestion_generation_daily_limit: int = 2
+    suggestion_regeneration_daily_limit: int = 8
+    resume_export_daily_limit: int = 5
+    max_resume_characters: int = 20000
+    max_job_description_characters: int = 20000
+    admin_daily_limit_exempt: bool = False
 
     @property
     def is_production(self) -> bool:
@@ -84,7 +113,6 @@ class Settings:
             ("S3_ACCESS_KEY_ID", self.s3_access_key_id),
             ("S3_SECRET_ACCESS_KEY", self.s3_secret_access_key),
             ("DEEPSEEK_API_KEY", self.deepseek_api_key),
-            ("ANTHROPIC_API_KEY", self.anthropic_api_key),
             ("SESSION_SECRET", self.session_secret),
         ):
             if not value:
@@ -93,6 +121,12 @@ class Settings:
             missing.append("CORS_ORIGINS")
         if self.registration_mode != "invite_only":
             missing.append("REGISTRATION_MODE (invite_only required)")
+        if self.primary_llm_provider != "deepseek":
+            missing.append("PRIMARY_LLM_PROVIDER (deepseek required)")
+        if self.ai_labs_enabled:
+            missing.append("AI_LABS_ENABLED (false required)")
+        if not self.session_cookie_secure:
+            missing.append("SESSION_COOKIE_SECURE (true required)")
         return tuple(missing)
 
     def validate(self) -> None:
@@ -104,6 +138,12 @@ class Settings:
             raise RuntimeError(
                 "REGISTRATION_MODE must be open, invite_only, or disabled"
             )
+        if self.primary_llm_provider not in {"deepseek", "anthropic"}:
+            raise RuntimeError("PRIMARY_LLM_PROVIDER must be deepseek or anthropic")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", self.session_cookie_name):
+            raise RuntimeError("SESSION_COOKIE_NAME contains unsupported characters")
+        if self.s3_presigned_url_seconds > 600:
+            raise RuntimeError("S3_PRESIGNED_URL_SECONDS must not exceed 600")
         if bool(self.initial_admin_username) != bool(self.initial_admin_password):
             raise RuntimeError(
                 "INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD must be configured together"
@@ -130,11 +170,32 @@ def get_settings() -> Settings:
         app_env=app_env,
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip(),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
+        primary_llm_provider=(
+            os.getenv("PRIMARY_LLM_PROVIDER", "deepseek").strip().lower()
+            or "deepseek"
+        ),
+        ai_labs_enabled=_parse_bool(
+            os.getenv(
+                "AI_LABS_ENABLED", "false" if app_env == "production" else "true"
+            ),
+            app_env != "production",
+        ),
         initial_admin_username=os.getenv("INITIAL_ADMIN_USERNAME", "").strip().lower(),
         initial_admin_password=os.getenv("INITIAL_ADMIN_PASSWORD", ""),
         database_url=os.getenv("DATABASE_URL", "sqlite:///./platform.db").strip()
         or "sqlite:///./platform.db",
         cors_origins=_parse_origins(os.getenv("CORS_ORIGINS", "")),
+        session_hours=_positive_int(os.getenv("SESSION_HOURS", "12"), 12),
+        session_cookie_name=(
+            os.getenv("SESSION_COOKIE_NAME", "ys_ai_session").strip()
+            or "ys_ai_session"
+        ),
+        session_cookie_secure=_parse_bool(
+            os.getenv(
+                "SESSION_COOKIE_SECURE", "true" if app_env == "production" else "false"
+            ),
+            app_env == "production",
+        ),
         llm_timeout_seconds=_positive_int(
             os.getenv("LLM_TIMEOUT_SECONDS", "45"), 45
         ),
@@ -172,4 +233,25 @@ def get_settings() -> Settings:
             os.getenv("EXPORT_RETENTION_DAYS", "7"), 7
         ),
         session_secret=os.getenv("SESSION_SECRET", ""),
+        career_analysis_daily_limit=_nonnegative_int(
+            os.getenv("CAREER_ANALYSIS_DAILY_LIMIT", "2"), 2
+        ),
+        suggestion_generation_daily_limit=_nonnegative_int(
+            os.getenv("SUGGESTION_GENERATION_DAILY_LIMIT", "2"), 2
+        ),
+        suggestion_regeneration_daily_limit=_nonnegative_int(
+            os.getenv("SUGGESTION_REGENERATION_DAILY_LIMIT", "8"), 8
+        ),
+        resume_export_daily_limit=_nonnegative_int(
+            os.getenv("RESUME_EXPORT_DAILY_LIMIT", "5"), 5
+        ),
+        max_resume_characters=_positive_int(
+            os.getenv("MAX_RESUME_CHARACTERS", "20000"), 20000
+        ),
+        max_job_description_characters=_positive_int(
+            os.getenv("MAX_JOB_DESCRIPTION_CHARACTERS", "20000"), 20000
+        ),
+        admin_daily_limit_exempt=_parse_bool(
+            os.getenv("ADMIN_DAILY_LIMIT_EXEMPT", "false"), False
+        ),
     )

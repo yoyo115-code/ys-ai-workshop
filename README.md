@@ -2,9 +2,9 @@
 
 > AI-powered career and productivity workspace
 
-Y's AI Workshop 是一个以求职材料为核心的 AI 工作台。用户可以保存简历与岗位 JD，获得引用原文证据的匹配分析，逐条审阅简历建议，保存不可变版本，并从确认内容生成 DOCX/PDF。五个原型工具继续作为 AI Labs 保留。
+Y's AI Workshop 是一个以求职材料为核心的 AI 工作台。用户可以保存简历与岗位 JD，获得引用原文证据的匹配分析，逐条审阅简历建议，保存不可变版本，并从确认内容生成 DOCX/PDF。五个原型 AI Labs 仍保留在代码中，但 Production Private Beta 默认关闭。
 
-当前分支实现的是 **Deployable Private Beta**：应用具备 PostgreSQL、私有对象存储、邀请制注册、限时导出、数据删除、健康检查、容器和 CI 能力，但仓库不会自动创建云资源，当前也没有公开 URL 或真实用户研究结果。
+当前版本是 **Deployable Private Beta**：应用具备 PostgreSQL、Cloudflare R2/S3-compatible 私有对象存储、邀请制注册、数据删除、日额度、Secure Cookie、Render Blueprint、健康检查和 CI 能力。仓库不会自动代表已经上线，当前没有公开 URL 或真实用户研究结果。
 
 ## 已实现功能
 
@@ -17,7 +17,9 @@ Y's AI Workshop 是一个以求职材料为核心的 AI 工作台。用户可以
 - 数据生命周期：导出默认保留 7 天，可幂等清理；用户可删除导出、Resume、Application 或整个账号。
 - 生产数据边界：本地/测试使用 SQLite 与本地存储；production 只允许 PostgreSQL 与 S3-compatible 私有存储。
 - 运维：live/ready 探针、Alembic migration、非 root Docker 镜像和 PostgreSQL/浏览器/容器 CI。
-- AI Labs：Resume Optimizer 原型接口、Copywriting、Translation、PDF Summary、CSV Analysis。
+- Launch guardrails：四类按用户/UTC 日期持久化额度、20,000 字符输入上限、Production Secure Cookie 和 DeepSeek-only 默认路径。
+- Render Blueprint：Singapore Docker Web Service、Render PostgreSQL、Alembic pre-deploy migration、readiness 检查和手动 Secret 注入。
+- AI Labs：Resume Optimizer 原型接口、Copywriting、Translation、PDF Summary、CSV Analysis；local/test 可开启，Production 返回 `feature_disabled`。
 
 ## 项目结构
 
@@ -82,9 +84,11 @@ DATABASE_URL=sqlite:///./platform.db
 STORAGE_PROVIDER=local
 REGISTRATION_MODE=open
 EXPORT_RETENTION_DAYS=7
+AI_LABS_ENABLED=true
+SESSION_COOKIE_SECURE=false
 ```
 
-Career Match 使用 DeepSeek；选择 Anthropic 的 AI Labs 需要对应 Key。没有配置 Provider Key 时接口返回明确错误，不会使用假结果。
+Career Match 和 Resume Suggestion 默认使用 DeepSeek；选择 Anthropic 的 AI Labs 需要本地显式开启并配置对应 Key。Production 不要求 `ANTHROPIC_API_KEY`，DeepSeek 失败后不会隐式调用 Claude。
 
 ## 生产配置
 
@@ -98,12 +102,18 @@ production 必须使用 PostgreSQL、S3-compatible 私有存储和邀请制注�
 | `DATABASE_URL` | 本地 SQLite 或生产 PostgreSQL URL |
 | `STORAGE_PROVIDER` | `local` 或 `s3`；兼容旧名 `STORAGE_BACKEND` |
 | `S3_BUCKET_NAME` / `S3_*` | 私有 bucket、区域、endpoint 和访问凭据；bucket 兼容旧名 `S3_BUCKET` |
-| `DEEPSEEK_API_KEY` / `ANTHROPIC_API_KEY` | AI Provider 凭据 |
+| `DEEPSEEK_API_KEY` | Production 唯一默认 AI Provider 凭据 |
+| `PRIMARY_LLM_PROVIDER` / `AI_LABS_ENABLED` | Production 分别为 `deepseek` / `false` |
 | `INITIAL_ADMIN_*` | 可选的一次性初始管理员；必须成对配置，无默认密码 |
 | `REGISTRATION_MODE` | `open`、`invite_only` 或 `disabled` |
 | `EXPORT_RETENTION_DAYS` | 导出保留天数，默认 7 |
 | `CORS_ORIGINS` | 逗号分隔的明确来源；production 禁止 `*` |
 | `SESSION_SECRET` | 邀请码 HMAC Secret；production 至少 32 字符 |
+| `SESSION_COOKIE_NAME` / `SESSION_COOKIE_SECURE` | Production Session Cookie 名称与 HTTPS-only 开关 |
+| `*_DAILY_LIMIT` | Career 分析、建议生成/重生成和导出的 UTC 日额度 |
+| `MAX_*_CHARACTERS` | 简历与 JD 模型调用前字符上限 |
+
+Production Session 使用 `HttpOnly; Secure; SameSite=Lax` Cookie，默认 12 小时。前端不将 Session Token 写入 `localStorage`；`X-Session-Token` 只保留给 local/test 兼容。
 
 生产部署先运行：
 
@@ -113,6 +123,12 @@ alembic upgrade head
 ```
 
 再启动应用。production 不会静默回退到 SQLite 或本地文件存储。
+
+## Render Blueprint
+
+根目录 [render.yaml](render.yaml) 定义 Singapore 区域的 Starter Docker Web Service 和 `basic-256mb` Render PostgreSQL。选择 Render Dashboard 的 **New → Blueprint** 并连接此 Private GitHub 仓库后，先填写 Blueprint 提示的 Secret，再创建资源。`preDeployCommand` 执行 `alembic upgrade head`，容器监听 `0.0.0.0:$PORT`。
+
+Cloudflare R2 使用 `S3_ENDPOINT_URL=https://<ACCOUNT_ID>.r2.cloudflarestorage.com` 和 `S3_REGION=auto`；bucket 必须保持 Private。下载由短时 presigned GET URL 完成，默认 300 秒且代码限制不超过 600 秒。详见 [Deployment](docs/DEPLOYMENT.md) 与 [Beta Limits](docs/BETA_LIMITS.md)。
 
 ## 管理员邀请与清理任务
 
@@ -150,6 +166,7 @@ docker run --rm -p 8000:8000 --env-file /secure/path/ys-ai.env ys-ai-workshop:pr
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /config/public`
+- `GET /usage/daily`
 - `DELETE /auth/account`
 - `DELETE /career/resumes/{resume_id}`
 
@@ -165,15 +182,15 @@ node --check frontend/assets/js/config.js
 node --check frontend/assets/js/app.js
 ```
 
-当前后端发现 126 项：本地可执行 125 项并跳过 1 项需要真实 PostgreSQL service 的 integration test；GitHub Actions 提供 PostgreSQL service 并执行该用例。测试使用合成数据和 mock LLM，不调用真实模型。
+当前后端发现 145 项：本地 144 通过，1 项需要 PostgreSQL service 的 integration test 如实跳过；GitHub Actions 使用 PostgreSQL 17 service 先执行 Alembic migration，再在完整套件中运行该用例。测试使用合成数据和 mock LLM，不调用真实模型。
 
 浏览器测试覆盖 Private Beta 标识、邀请码表单、隐私/保留提示、核心导航、静态资源、控制台错误和 390px 响应式布局。运行方式见 [Testing](docs/TESTING.md)。
 
 ## 当前限制
 
-- 仓库没有自动创建云数据库、bucket、域名、HTTPS、备份或监控；目前没有公开部署 URL。
+- Render Blueprint 已定义云数据库和 Web Service，但仍需人工授权 Private GitHub、填写 Secret、确认付费计划并点击创建；目前没有公开部署 URL。
 - 尚未进行真实 Beta 用户研究、可用性访谈或求职结果评估。
-- Session 仍通过 Header Token 传递；公开互联网部署前应进一步评估 Secure Cookie、CSRF、限流和恶意文件扫描。
+- 已有持久化每日额度和 Secure Cookie，但仍没有通用 IP 级流量清洗、恶意文件扫描或完整 CSRF 策略。
 - 过期清理 job 已实现，但需要部署平台配置 scheduler；没有自动验证云端备份恢复。
 - S3-compatible 实现已通过 mock contract test；本机没有 Docker/PostgreSQL，因此真实 PostgreSQL 用例由 CI 执行。
 - Resume Export 不还原原始 PDF/DOCX 像素级版式；没有 OCR。

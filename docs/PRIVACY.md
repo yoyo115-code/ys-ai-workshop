@@ -11,6 +11,7 @@ Y's AI Workshop Private Beta 会处理求职材料，其中可能包含身份、
 | 导出文件 | DOCX、PDF 与结构化快照 | 私有对象、限时保留、可立即删除 |
 | 运维数据 | 请求类型、状态、延迟、错误码 | 去除正文、联系方式、Token 和凭据 |
 | 邀请数据 | 邀请码哈希、次数、到期时间 | 明文只在创建时显示一次 |
+| 额度数据 | 用户 ID、UTC 日期、功能类型、已用次数 | 不保存简历、JD、Prompt 或模型响应 |
 
 ## 用途与边界
 
@@ -18,6 +19,7 @@ Y's AI Workshop Private Beta 会处理求职材料，其中可能包含身份、
 - 不把用户材料用于模型训练、公开展示或跨用户推荐。
 - 不把活动日志当作业务数据副本。
 - AI Provider 是数据处理链路的一部分；Beta 管理者必须在开放真实用户前核对其数据处理条款和区域设置。
+- Production 只使用配置的 DeepSeek Provider，失败时不将数据自动转发给 Claude。
 
 ## 日志最小化
 
@@ -28,11 +30,16 @@ Y's AI Workshop Private Beta 会处理求职材料，其中可能包含身份、
 - 导出文件默认保留 7 天，由 `EXPORT_RETENTION_DAYS` 配置。
 - 到期文件不可下载，并由幂等清理任务删除对象和更新记录。
 - 用户主动删除导出时立即删除对象；已签发的短期下载地址因对象删除而失效。
+- Cloudflare R2 bucket 保持 Private，不生成公开 bucket URL；presigned GET 默认 300 秒、最长 600 秒。
 - 删除 Job Application 时同时删除其简历来源、分析、建议、版本与导出对象。
 - 删除 Resume 时删除所有版本、建议、导出记录与对象。
 - 删除账号时删除该用户的 Session、活动记录和全部求职数据，并清理导出对象。
 
 数据库备份可能有独立的基础设施保留窗口。公开 Beta 前必须在隐私说明中公布窗口，并建立到期销毁流程；Phase 5A 不声称已配置云备份。
+
+## Session 保护
+
+Production 使用可配置名称的 `HttpOnly; Secure; SameSite=Lax` Cookie，默认 12 小时到期。Session Token 不进入 URL、前端 `localStorage` 或日志。Header Session 只保留在 local/test 兼容。
 
 ## 用户提示
 

@@ -65,6 +65,18 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
                 )
                 self.assertEqual(listed.status_code, 200)
                 self.assertEqual(len(listed.json()), 1)
+                analyzed = client.post(
+                    f"/career/applications/{created.json()['id']}/analyze",
+                    headers={"X-Session-Token": token},
+                )
+                self.assertEqual(analyzed.status_code, 200, analyzed.text)
+                usage = client.get(
+                    "/usage/daily", headers={"X-Session-Token": token}
+                )
+                self.assertEqual(usage.status_code, 200)
+                self.assertEqual(
+                    usage.json()["quotas"]["career_analysis"]["used"], 1
+                )
 
 
 if __name__ == "__main__":

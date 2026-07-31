@@ -50,7 +50,11 @@
           <div id="auth-message" class="auth-message">请输入账号密码，或注册新账号。</div>
         </div>
         <div id="user-panel" class="user-summary" hidden>
-          <div><strong id="current-user">-</strong><span id="current-role" class="auth-message">-</span></div>
+          <div>
+            <strong id="current-user">-</strong>
+            <span id="current-role" class="auth-message">-</span>
+            <span id="daily-usage-summary" class="daily-usage-summary">今日剩余：登录后查看</span>
+          </div>
           <div class="account-actions">
             <button id="delete-account-btn" class="auth-button auth-danger" type="button">删除账号数据</button>
             <button id="logout-btn" class="auth-button" type="button">退出</button>
@@ -99,8 +103,8 @@
           </span>
         </button>
 
-        <div class="nav-section-label nav-section-spaced">AI Labs</div>
-        <button class="tab-btn" type="button" onclick="switchTab('resume')" data-tab="resume">
+        <div id="ai-labs-nav-label" class="nav-section-label nav-section-spaced" hidden>AI Labs</div>
+        <button class="tab-btn" type="button" onclick="switchTab('resume')" data-tab="resume" data-ai-lab-nav hidden>
           <span class="tab-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M8 6h8M8 10h8M8 14h5" />
@@ -113,7 +117,7 @@
           </span>
         </button>
 
-        <button class="tab-btn" type="button" onclick="switchTab('copywrite')" data-tab="copywrite">
+        <button class="tab-btn" type="button" onclick="switchTab('copywrite')" data-tab="copywrite" data-ai-lab-nav hidden>
           <span class="tab-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M4 19.5V20h.5L15.8 8.7l-1.5-1.5L4 17.5v2Z" />
@@ -127,7 +131,7 @@
           </span>
         </button>
 
-        <button class="tab-btn" type="button" onclick="switchTab('translate')" data-tab="translate">
+        <button class="tab-btn" type="button" onclick="switchTab('translate')" data-tab="translate" data-ai-lab-nav hidden>
           <span class="tab-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M4 5h9M9 3v2M7 5c.7 3.2 2.6 5.7 5.5 7.5" />
@@ -141,7 +145,7 @@
           </span>
         </button>
 
-        <button class="tab-btn" type="button" onclick="switchTab('pdf')" data-tab="pdf">
+        <button class="tab-btn" type="button" onclick="switchTab('pdf')" data-tab="pdf" data-ai-lab-nav hidden>
           <span class="tab-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
@@ -154,7 +158,7 @@
           </span>
         </button>
 
-        <button class="tab-btn" type="button" onclick="switchTab('csv')" data-tab="csv">
+        <button class="tab-btn" type="button" onclick="switchTab('csv')" data-tab="csv" data-ai-lab-nav hidden>
           <span class="tab-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
@@ -414,7 +418,7 @@
           </section>
         </section>
 
-        <section id="panel-resume" class="panel" aria-labelledby="resume-title">
+        <section id="panel-resume" class="panel" aria-labelledby="resume-title" data-ai-lab-panel hidden>
           <div class="panel-heading">
             <div>
               <h2 id="resume-title">简历优化</h2>
@@ -446,7 +450,7 @@
           </div>
         </section>
 
-        <section id="panel-copywrite" class="panel" aria-labelledby="copywrite-title">
+        <section id="panel-copywrite" class="panel" aria-labelledby="copywrite-title" data-ai-lab-panel hidden>
           <div class="panel-heading">
             <div>
               <h2 id="copywrite-title">文案生成</h2>
@@ -478,7 +482,7 @@
           </div>
         </section>
 
-        <section id="panel-translate" class="panel" aria-labelledby="translate-title">
+        <section id="panel-translate" class="panel" aria-labelledby="translate-title" data-ai-lab-panel hidden>
           <div class="panel-heading">
             <div>
               <h2 id="translate-title">翻译助手</h2>
@@ -510,7 +514,7 @@
           </div>
         </section>
 
-        <section id="panel-pdf" class="panel" aria-labelledby="pdf-title">
+        <section id="panel-pdf" class="panel" aria-labelledby="pdf-title" data-ai-lab-panel hidden>
           <div class="panel-heading">
             <div>
               <h2 id="pdf-title">PDF 摘要</h2>
@@ -554,7 +558,7 @@
           </div>
         </section>
 
-        <section id="panel-csv" class="panel" aria-labelledby="csv-title">
+        <section id="panel-csv" class="panel" aria-labelledby="csv-title" data-ai-lab-panel hidden>
           <div class="panel-heading">
             <div>
               <h2 id="csv-title">CSV 预览</h2>
