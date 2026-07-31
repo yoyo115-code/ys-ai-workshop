@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 
-from app.api.dependencies import require_user
+from app.api.dependencies import require_ai_labs_enabled, require_user
 from app.models.domain import PublicUser
 from app.prompts.catalog import copywrite_prompt, translate_prompt
 from app.schemas.ai import SceneRequest, TextRequest
 
 
-router = APIRouter(tags=["labs"])
+router = APIRouter(
+    tags=["labs"], dependencies=[Depends(require_ai_labs_enabled)]
+)
 
 
 @router.post("/copywrite")
@@ -20,7 +22,7 @@ def copywrite(
         "copywrite",
         data.scene,
         copywrite_prompt(data.scene),
-        data.provider,
+        data.provider or request.app.state.settings.primary_llm_provider,
     )
 
 
@@ -35,7 +37,7 @@ def translate(
         "translate",
         data.text,
         translate_prompt(data.text),
-        data.provider,
+        data.provider or request.app.state.settings.primary_llm_provider,
     )
 
 
@@ -43,7 +45,7 @@ def translate(
 async def pdf_summary(
     request: Request,
     file: UploadFile = File(...),
-    provider: str = "deepseek",
+    provider: str | None = None,
     user: PublicUser = Depends(require_user),
 ) -> dict[str, str]:
     prepared = await request.app.state.pdf_service.prepare(file)
@@ -52,7 +54,7 @@ async def pdf_summary(
         "pdf_summary",
         prepared.input_preview,
         prepared.prompt,
-        provider,
+        provider or request.app.state.settings.primary_llm_provider,
         prepared.metadata,
     )
 
@@ -61,7 +63,7 @@ async def pdf_summary(
 async def csv_preview(
     request: Request,
     file: UploadFile = File(...),
-    provider: str = "deepseek",
+    provider: str | None = None,
     user: PublicUser = Depends(require_user),
 ) -> dict[str, str]:
     prepared = await request.app.state.csv_service.prepare(file)
@@ -70,6 +72,6 @@ async def csv_preview(
         "csv_preview",
         prepared.input_preview,
         prepared.prompt,
-        provider,
+        provider or request.app.state.settings.primary_llm_provider,
         prepared.metadata,
     )

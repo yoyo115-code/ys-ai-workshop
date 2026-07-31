@@ -71,10 +71,17 @@ class FrontendDeliveryBrowserTests(unittest.TestCase):
         self.page.locator("#auth-switch-btn").click()
         self.assertTrue(self.page.locator("#display-name").is_visible())
         self.assertTrue(self.page.locator("#confirm-password").is_visible())
+        self.assertTrue(self.page.locator("#invite-code").is_visible())
         self.assertEqual(self.page.locator("#login-btn").inner_text(), "创建账号")
         self.page.locator("#auth-switch-btn").click()
         self.assertFalse(self.page.locator("#display-name").is_visible())
         self.assertEqual(self.page.locator("#login-btn").inner_text(), "登录")
+
+    def test_private_beta_notice_and_data_controls_exist(self) -> None:
+        self.assertTrue(self.page.locator(".beta-badge").is_visible())
+        self.assertTrue(self.page.locator("#privacy-notice").is_visible())
+        self.assertIn("7 天", self.page.locator("#retention-summary").inner_text())
+        self.assertEqual(self.page.locator("#delete-account-btn").count(), 1)
 
     def test_career_optimizer_and_ai_labs_navigation(self) -> None:
         self.assertTrue(self.page.locator("#panel-career").is_visible())
@@ -99,6 +106,22 @@ class FrontendDeliveryBrowserTests(unittest.TestCase):
     def test_assets_and_console_have_no_blocking_errors(self) -> None:
         self.assertEqual(self.failed_assets, [])
         self.assertEqual(self.console_errors, [])
+
+    def test_private_beta_layout_is_responsive(self) -> None:
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        result = self.page.evaluate(
+            """
+            () => ({
+              overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+              noticeDirection: getComputedStyle(document.querySelector('#privacy-notice')).flexDirection,
+              headerColumns: getComputedStyle(document.querySelector('#header')).gridTemplateColumns
+            })
+            """
+        )
+        self.assertFalse(result["overflow"])
+        self.assertEqual(result["noticeDirection"], "column")
+        self.assertNotIn(" ", result["headerColumns"])
+        self.page.set_viewport_size({"width": 1440, "height": 1000})
 
 
 if __name__ == "__main__":

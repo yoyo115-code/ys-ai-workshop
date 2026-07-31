@@ -1,12 +1,13 @@
-import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import Settings
 from app.core.security import (
     hash_password,
+    hash_invite_code,
     new_password_salt,
     new_session_token,
     validate_display_name,
@@ -15,7 +16,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.domain import PublicUser
-from app.repositories.workshop import WorkshopRepository
+from app.repositories.workshop import InviteCodeError, WorkshopRepository
 from app.schemas.auth import LoginRequest, RegisterRequest
 
 
@@ -23,7 +24,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def public_user(row: sqlite3.Row) -> PublicUser:
+def public_user(row: Any) -> PublicUser:
     return {
         "id": row["id"],
         "username": row["username"],
@@ -78,6 +79,8 @@ class AuthService:
         return {"token": token, "user": public_user(row)}
 
     def register(self, data: RegisterRequest) -> dict[str, Any]:
+        if self.settings.registration_mode == "disabled":
+            raise HTTPException(status_code=403, detail="当前环境未开放注册")
         username = data.username.strip().lower()
         display_name = data.display_name.strip()
         try:
@@ -90,14 +93,31 @@ class AuthService:
         salt = new_password_salt()
         now = utc_now()
         try:
-            row = self.repository.create_user(
-                username,
-                hash_password(data.password, salt),
-                salt,
-                display_name,
-                now,
-            )
-        except sqlite3.IntegrityError as exc:
+            if self.settings.registration_mode == "invite_only":
+                if not data.invite_code.strip():
+                    raise InviteCodeError("Invitation code is required")
+                invite_hash = hash_invite_code(
+                    data.invite_code, self.settings.session_secret
+                )
+                row = self.repository.create_user_with_invite(
+                    username,
+                    hash_password(data.password, salt),
+                    salt,
+                    display_name,
+                    now,
+                    invite_hash,
+                )
+            else:
+                row = self.repository.create_user(
+                    username,
+                    hash_password(data.password, salt),
+                    salt,
+                    display_name,
+                    now,
+                )
+        except InviteCodeError as exc:
+            raise HTTPException(status_code=403, detail="邀请码无效、已到期或已用完") from exc
+        except IntegrityError as exc:
             raise HTTPException(status_code=409, detail="该账号已被注册") from exc
 
         token = new_session_token()

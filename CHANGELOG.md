@@ -2,6 +2,38 @@
 
 All notable changes to Y's AI Workshop are documented in this file.
 
+## [v0.5.0] - 2026-07-31
+
+### Added
+
+- PostgreSQL production compatibility through a SQLAlchemy 2 connection/transaction adapter and Alembic migrations.
+- Local and S3-compatible storage providers with user-scoped random object keys and short-lived presigned downloads.
+- Invitation-only registration with hashed, expiring, usage-limited codes and an administrator CLI.
+- Seven-day default export retention, expired-download rejection and an idempotent cleanup job.
+- Job Application, Resume, export and account deletion with physical export-object cleanup.
+- Log minimization and deterministic contact/credential redaction.
+- Liveness/readiness probes, non-root Docker image and PostgreSQL/browser/container CI.
+- Private Beta badge, de-identification warning, retention notice, invite field and account deletion entry.
+- Production AI Labs feature gate and a DeepSeek-only primary Provider path without implicit Claude fallback.
+- Persistent per-user UTC daily limits for Career analysis, suggestion generation/regeneration and Resume Export.
+- Pre-model 20,000-character resume/JD limits and an authenticated remaining-quota view.
+- Production `HttpOnly; Secure; SameSite=Lax` Session Cookie with configurable name/expiry; browser Token storage removed.
+- Render Blueprint for a Singapore Docker Web Service, Render PostgreSQL, Alembic pre-deploy migration and Cloudflare R2 secrets.
+
+### Testing
+
+- 145 discovered backend tests: 144 pass locally and one PostgreSQL integration test runs when a PostgreSQL service is available.
+- SQLite and PostgreSQL-offline migration validation.
+- Browser acceptance for Private Beta UI, assets, console and 390px responsive layout.
+- Launch guardrail validation for AI Labs closure, Provider selection, all four quotas, UTC reset, concurrency, input limits, Secure Cookie and `render.yaml`.
+
+### Known limitations
+
+- The Blueprint is ready for manual creation, but no cloud environment, public URL, managed backup or monitoring resource has been created by this repository.
+- S3 contract is locally mocked; live object-store and PostgreSQL execution are delegated to controlled deployment/CI environments.
+- Retention cleanup requires an external scheduler.
+- No real-user Beta research has been performed yet.
+
 ## [v0.4.0] - 2026-07-31
 
 ### Added

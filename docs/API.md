@@ -10,13 +10,31 @@ X-Session-Token: <session token>
 
 ### `GET /health`
 
-返回服务状态和当前 SQLite 文件名。
+兼容旧客户端的健康响应。local/test 返回 SQLite 文件名；production 只返回数据库类型，不暴露连接信息。
+
+### `GET /health/live`
+
+只确认应用进程可响应，成功返回 `200 {"status": "ok"}`。
+
+### `GET /health/ready`
+
+检查数据库和 StorageProvider。全部可用返回 `200`；任一不可用返回 `503`。响应只包含 `ok` / `unavailable`，不返回 URL、bucket、路径或 Secret。
+
+### `GET /config/public`
+
+返回前端可公开读取的环境标识、注册模式、导出保留天数和隐私说明锚点。响应不含内部连接信息或凭据。
 
 ## Authentication
 
 ### `POST /auth/register`
 
-JSON：`username`、`password`、`display_name`。注册角色固定为普通用户，成功返回 Session token 和用户信息。
+JSON：`username`、`password`、`display_name`、可选 `invite_code`。注册角色固定为普通用户：
+
+- `open`：不要求邀请码；
+- `invite_only`：必须提供有效、未到期且仍有次数的邀请码；
+- `disabled`：返回 `403`。
+
+邀请码明文不入库，使用次数更新与用户创建在同一事务中。成功返回 Session token 和用户信息。
 
 ### `POST /auth/login`
 
@@ -29,6 +47,10 @@ JSON：`username`、`password`。成功返回 Session token 和用户信息。
 ### `GET /auth/me`
 
 返回当前 Session 对应的用户信息。
+
+### `DELETE /auth/account`
+
+JSON：`password`。验证当前密码后删除账号、Session、活动记录、全部 Application/Resume/Version/Suggestion/Export，并先清理导出对象。对象存储删除失败时返回 `503 data_deletion_incomplete`，数据库记录保留以便重试。
 
 ## AI Tools
 
@@ -104,7 +126,7 @@ Multipart fields：
 
 ### `DELETE /career/applications/{application_id}`
 
-删除当前用户自己的申请及其简历来源、分析和匹配项，成功返回 `204`。
+删除当前用户自己的申请及其简历来源、分析、匹配项、Resume、Version、Suggestion、Export，并先清理关联导出对象，成功返回 `204`。
 
 ## Resume Optimizer & Versioning
 
@@ -145,6 +167,10 @@ JSON：
 ### `GET /career/resumes/{resume_id}/versions`
 
 按 `version_number` 倒序返回当前用户该 Resume 的不可变完整文本快照。
+
+### `DELETE /career/resumes/{resume_id}`
+
+删除当前用户的 Resume、全部 Version/Suggestion/Export 和关联导出对象，但保留原 Job Application。成功返回 `204`。
 
 ### `GET /career/resume-versions/{version_id}`
 
@@ -192,7 +218,7 @@ JSON：
 - `language`: `zh`、`en` 或 `bilingual`。
 - `resume`: 可选的用户确认 Schema；未传时使用当前确定性解析结果。`original_text` 必须与源版本一致。
 
-成功返回 `201` 和 `ready` 记录。渲染失败保留 `failed` 记录并清理不完整文件；缺少渲染依赖或 CJK 字体时返回稳定错误码。
+成功返回 `201` 和 `ready` 记录，并写入由 `EXPORT_RETENTION_DAYS` 计算的 UTC `expires_at`。渲染失败保留 `failed` 记录并清理不完整文件；缺少渲染依赖或 CJK 字体时返回稳定错误码。
 
 ### `GET /career/resume-exports?version_id={version_id}`
 
@@ -200,15 +226,15 @@ JSON：
 
 ### `GET /career/resume-exports/{export_id}`
 
-返回导出元数据、状态、文件名、内容哈希和可用的 `download_url`。
+返回导出元数据、状态、文件名、内容哈希和可用的 `download_url`。已到期但尚未清理的 ready 记录以计算状态 `expired` 返回。
 
 ### `GET /career/resume-exports/{export_id}/download`
 
-只允许下载当前用户的 `ready` 文件。DOCX 返回 Open XML `Content-Type`，PDF 返回 `application/pdf`；`Content-Disposition` 使用已清理的姓名_公司_岗位_版本文件名。
+只允许下载当前用户未到期的 `ready` 文件。DOCX 返回 Open XML `Content-Type`，PDF 返回 `application/pdf`；`Content-Disposition` 使用已清理的姓名_公司_岗位_版本文件名。本地存储由鉴权 API 返回字节；S3-compatible 存储返回短期 presigned redirect。到期文件返回 `410 export_expired`。
 
 ### `DELETE /career/resume-exports/{export_id}`
 
-校验文件位于专用导出根目录后删除文件，并将记录软删除为 `deleted`。成功返回 `204`。
+校验用户命名空间后删除本地/S3 对象，并将记录软删除为 `deleted`。成功返回 `204`。对象已不存在时操作仍可幂等收敛。
 
 ## Admin
 
@@ -225,6 +251,7 @@ JSON：
 - `400`：请求、Provider 或文件无效。
 - `401`：未登录或 Session 失效。
 - `403`：普通用户访问管理员接口。
+- `403`：注册关闭、邀请码无效/到期/用尽，或账号删除密码错误。
 - `409`：用户名重复。
 - `409`：Career Match 正在分析，拒绝重复任务。
 - `409`：建议状态转换非法、高风险未确认，或版本无可用建议/原句冲突。
@@ -235,3 +262,5 @@ JSON：
 - `502`：外部模型调用失败。
 - `503`：所选 Provider 的 API Key 未配置。
 - `503`：DOCX/PDF 渲染依赖或必需的 CJK 字体不可用。
+- `503`：readiness 依赖不可用或数据对象删除未完成。
+- `410`：导出已到期或物理对象已不存在。

@@ -11,7 +11,44 @@ cp .env.example .env
 
 从仓库根目录维护 `.env`。禁止提交真实密钥、数据库、Session 或活动日志。
 
-Resume Export 默认把运行文件写到 `backend/generated/`，可用 `RESUME_EXPORT_DIR` 切换到受控私有目录。不要把用户导出的 DOCX/PDF 放入源码或 Git。
+Resume Export 默认把运行文件写到 `backend/generated/`，可用 `RESUME_EXPORT_DIR` 切换到受控私有目录。不要把用户导出的 DOCX/PDF 放入源码或 Git。local 默认 `STORAGE_PROVIDER=local`、`REGISTRATION_MODE=open`；不要在开发环境伪装 production 配置。
+
+## 数据库模式
+
+本地默认 SQLite：
+
+```dotenv
+APP_ENV=development
+DATABASE_URL=sqlite:///./platform.db
+```
+
+production 只允许 PostgreSQL，并要求先执行：
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+SQLAlchemy 2 只作为连接/事务适配器，新增 SQL 仍应放在 Repository。Alembic revision 是 production schema 的唯一升级入口；`database/schema.sql` 用于本地 SQLite 基线。
+
+## Private Beta 本地配置
+
+邀请码流程需要非空 `SESSION_SECRET` 和 `REGISTRATION_MODE=invite_only`。管理员 CLI：
+
+```bash
+cd backend
+python -m app.cli.create_invite --max-uses 5 --expires-in-days 14
+```
+
+数据库有多个管理员时增加 `--admin-username`。CLI 输出的明文邀请码只能通过私密渠道传递，不得写入测试 fixture、日志或截图。
+
+过期导出清理可本地执行：
+
+```bash
+python -m app.jobs.cleanup_expired_exports
+```
+
+production 需要外部 scheduler 调用；应用进程不会自行启动隐藏定时器。
 
 ## 启动后端和页面
 
@@ -64,7 +101,7 @@ Career Match 测试不得调用真实 DeepSeek。结构化 Provider mock 必须�
 
 ### 浏览器测试
 
-Playwright 是可选开发依赖，不进入默认后端依赖，浏览器二进制、报告和截图也不提交。
+Playwright 是独立测试依赖，不进入默认后端依赖，浏览器二进制、报告和截图也不提交。GitHub Actions 会在临时 runner 安装 Chromium 并执行。
 
 ```bash
 pip install -r tests/browser/requirements.txt
@@ -78,7 +115,7 @@ YS_AI_E2E_BASE_URL=http://127.0.0.1:8000 \
 python3 -m unittest tests.browser.test_frontend_delivery_e2e -v
 ```
 
-用例检查主样式、认证面板、Career Match 默认页、Resume Optimizer/AI Labs 导航、Resume Export 入口与两模板/两格式契约、SVG 尺寸、横向溢出、资源失败和控制台 error。
+用例检查主样式、邀请制认证面板、Private Beta/隐私提示、Career Match 默认页、Resume Optimizer/AI Labs 导航、Resume Export、SVG 尺寸、390px 横向溢出、资源失败和控制台 error。
 
 Resume Export 的手动验收顺序：
 
@@ -119,6 +156,13 @@ node --check frontend/assets/js/app.js
 - 文档渲染只能使用确认后 `StructuredResume`；导出不得调用 LLM 补全或润色。
 - 下载名不得作为内部路径；文件读写必须限定在 `RESUME_EXPORT_DIR`。
 
-## SQLite migration 检查
+## Migration 检查
 
-`database/schema.sql` 用于全新数据库，`database/migrations/0001_career_match.sql`、`0002_resume_versioning.sql` 和 `0003_resume_exports.sql` 依次记录增量。可以在系统临时目录创建空数据库，执行完整 schema 后再重复执行 migration，确认表与索引幂等；不要对仓库中的真实运行数据库做检查。
+测试从空 SQLite 执行 Alembic 到 head，并离线编译 PostgreSQL SQL，确认没有 `PRAGMA` / `AUTOINCREMENT`。GitHub Actions 使用真实 PostgreSQL service 执行 migration 和 Repository round-trip。不要对真实运行数据库做实验性 migration。
+
+## Production 配置排查
+
+- `/health/live` 失败：应用进程或端口问题。
+- `/health/ready` 返回 503：检查数据库和存储资源；响应不会给出连接值。
+- 启动提示配置不完整：只按提示的变量名到 Secret Manager 检查，不要打印 `.env`。
+- production 禁止 SQLite、本地存储、开放注册和通配 CORS；不得临时放宽来掩盖资源故障。

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile, status
 
-from app.api.dependencies import require_user
+from app.api.dependencies import require_ai_labs_enabled, require_user
 from app.models.domain import PublicUser
 from app.prompts.catalog import resume_prompt
 from app.schemas.ai import TextRequest
@@ -19,6 +19,7 @@ router = APIRouter(tags=["career"])
 def resume(
     data: TextRequest,
     request: Request,
+    _: None = Depends(require_ai_labs_enabled),
     user: PublicUser = Depends(require_user),
 ) -> dict[str, str]:
     return request.app.state.activity_service.run_llm(
@@ -26,7 +27,7 @@ def resume(
         "resume",
         data.text,
         resume_prompt(data.text),
-        data.provider,
+        data.provider or request.app.state.settings.primary_llm_provider,
     )
 
 
@@ -106,5 +107,5 @@ def delete_career_application(
     request: Request,
     user: PublicUser = Depends(require_user),
 ) -> Response:
-    request.app.state.career_match_service.delete_application(user, application_id)
+    request.app.state.privacy_service.delete_application(user, application_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

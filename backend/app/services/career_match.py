@@ -1,12 +1,13 @@
 import json
-import sqlite3
 import time
 from typing import Any
 
 from fastapi import HTTPException, UploadFile
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from app.models.domain import PublicUser
+from app.core.config import Settings
 from app.prompts.career_match_v1 import PROMPT_VERSION, build_career_match_prompt
 from app.repositories.career import CareerRepository
 from app.repositories.workshop import WorkshopRepository
@@ -14,6 +15,7 @@ from app.schemas.career_match import MatchAnalysisPayload
 from app.services.auth import utc_now
 from app.services.llm import LLMProvider
 from app.services.resume_parsing import ParsedResume, ResumeParseFailure, ResumeParsingService
+from app.services.usage import CAREER_ANALYSIS, DailyUsageService
 
 
 CAREER_PROVIDER = "deepseek"
@@ -35,11 +37,15 @@ class CareerMatchService:
         workshop_repository: WorkshopRepository,
         resume_parser: ResumeParsingService,
         llm_provider: LLMProvider,
+        daily_usage_service: DailyUsageService,
+        settings: Settings,
     ) -> None:
         self.repository = repository
         self.workshop_repository = workshop_repository
         self.resume_parser = resume_parser
         self.llm_provider = llm_provider
+        self.daily_usage_service = daily_usage_service
+        self.settings = settings
 
     async def create_application(
         self,
@@ -55,6 +61,9 @@ class CareerMatchService:
         jd = job_description.strip()
         if not jd:
             raise HTTPException(status_code=422, detail="岗位 JD 不能为空")
+        self._validate_input_length(
+            jd, self.settings.max_job_description_characters, "job_description"
+        )
         if language not in {"zh", "en", "bilingual"}:
             raise HTTPException(status_code=422, detail="语言必须为 zh、en 或 bilingual")
         has_text = bool(resume_text.strip())
@@ -62,6 +71,10 @@ class CareerMatchService:
             raise HTTPException(status_code=422, detail="简历文本和简历文件只能选择一种")
         if not has_text and (resume_file is None or not resume_file.filename):
             raise HTTPException(status_code=422, detail="请粘贴简历文本或上传简历文件")
+        if has_text:
+            self._validate_input_length(
+                resume_text.strip(), self.settings.max_resume_characters, "resume"
+            )
 
         try:
             parsed = (
@@ -97,6 +110,10 @@ class CareerMatchService:
                     "application_id": application_id,
                 },
             ) from exc
+
+        self._validate_input_length(
+            parsed.extracted_text, self.settings.max_resume_characters, "resume"
+        )
 
         application_id = self._persist_application(
             user,
@@ -142,6 +159,16 @@ class CareerMatchService:
             raise HTTPException(status_code=404, detail="申请记录不存在")
         if application["parse_status"] != "parsed" or not application["extracted_text"]:
             raise HTTPException(status_code=422, detail="简历没有可用于分析的文本")
+        self._validate_input_length(
+            application["extracted_text"],
+            self.settings.max_resume_characters,
+            "resume",
+        )
+        self._validate_input_length(
+            application["job_description"],
+            self.settings.max_job_description_characters,
+            "job_description",
+        )
 
         latest = self.repository.latest_analysis(application_id)
         if latest is not None and latest["status"] == "analyzing":
@@ -160,10 +187,17 @@ class CareerMatchService:
                 PROMPT_VERSION,
                 created_at,
             )
-        except sqlite3.IntegrityError as exc:
+        except IntegrityError as exc:
             raise HTTPException(
                 status_code=409, detail="该申请正在分析，请勿重复提交"
             ) from exc
+        try:
+            self.daily_usage_service.consume(user, CAREER_ANALYSIS)
+        except HTTPException:
+            self.repository.fail_analysis(
+                analysis_id, application_id, "daily_limit_exceeded", utc_now()
+            )
+            raise
         prompt = build_career_match_prompt(
             application["extracted_text"],
             application["job_description"],
@@ -219,6 +253,21 @@ class CareerMatchService:
         )
         return self._analysis_response(
             self.repository.analysis_with_items(analysis_id)
+        )
+
+    @staticmethod
+    def _validate_input_length(value: str, limit: int, input_type: str) -> None:
+        if len(value) <= limit:
+            return
+        label = "简历" if input_type == "resume" else "岗位 JD"
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "input_too_long",
+                "input_type": input_type,
+                "limit": limit,
+                "message": f"{label}超过 {limit} 字符限制",
+            },
         )
 
     def _persist_application(

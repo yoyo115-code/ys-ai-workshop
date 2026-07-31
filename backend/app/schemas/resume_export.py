@@ -7,7 +7,9 @@ TemplateKey = Literal["professional", "minimal_ats"]
 ExportFormat = Literal["docx", "pdf"]
 PaperSize = Literal["a4", "letter"]
 ExportLanguage = Literal["zh", "en", "bilingual"]
-ExportStatus = Literal["pending", "generating", "ready", "failed", "deleted"]
+ExportStatus = Literal[
+    "pending", "generating", "ready", "failed", "expired", "deleted"
+]
 
 
 class ResumeBasics(BaseModel):

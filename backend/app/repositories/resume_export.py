@@ -38,6 +38,7 @@ class ResumeExportRepository:
         structured_content: str,
         structure_hash: str,
         created_at: str,
+        expires_at: str,
     ) -> dict[str, Any]:
         with self.database.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -56,8 +57,8 @@ class ResumeExportRepository:
                 INSERT INTO resume_exports
                     (user_id, resume_id, resume_version_id, template_key, format,
                      paper_size, language, status, filename, source_content_hash,
-                     structured_content, structure_hash, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
+                     structured_content, structure_hash, created_at, updated_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user_id,
@@ -73,6 +74,7 @@ class ResumeExportRepository:
                     structure_hash,
                     created_at,
                     created_at,
+                    expires_at,
                 ),
             )
             export_id = int(cursor.lastrowid or 0)
@@ -190,6 +192,63 @@ class ResumeExportRepository:
                 (deleted_at, deleted_at, export_id, user_id),
             )
         return cursor.rowcount == 1
+
+    def list_expired(self, now: str, limit: int = 200) -> list[dict[str, Any]]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM resume_exports
+                WHERE deleted_at IS NULL AND expires_at IS NOT NULL
+                  AND expires_at <= ?
+                ORDER BY expires_at ASC, id ASC
+                LIMIT ?
+                """,
+                (now, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_object_keys_for_user(self, user_id: int) -> list[dict[str, Any]]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, user_id, object_key FROM resume_exports
+                WHERE user_id = ? AND object_key IS NOT NULL AND deleted_at IS NULL
+                ORDER BY id
+                """,
+                (user_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_object_keys_for_application(
+        self, user_id: int, application_id: int
+    ) -> list[dict[str, Any]]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT e.id, e.user_id, e.object_key FROM resume_exports e
+                JOIN resumes r ON r.id = e.resume_id
+                WHERE e.user_id = ? AND r.source_application_id = ?
+                  AND e.object_key IS NOT NULL AND e.deleted_at IS NULL
+                ORDER BY e.id
+                """,
+                (user_id, application_id),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_object_keys_for_resume(
+        self, user_id: int, resume_id: int
+    ) -> list[dict[str, Any]]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, user_id, object_key FROM resume_exports
+                WHERE user_id = ? AND resume_id = ?
+                  AND object_key IS NOT NULL AND deleted_at IS NULL
+                ORDER BY id
+                """,
+                (user_id, resume_id),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def _transition(
         self,

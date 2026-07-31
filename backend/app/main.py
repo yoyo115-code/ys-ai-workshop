@@ -5,13 +5,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, auth, career, labs, resume_export, resume_optimizer, system
+from app.api import (
+    admin,
+    auth,
+    career,
+    labs,
+    resume_export,
+    resume_optimizer,
+    system,
+    usage,
+)
 from app.core.config import Settings, get_settings
 from app.repositories.database import Database
 from app.repositories.career import CareerRepository
 from app.repositories.workshop import WorkshopRepository
 from app.repositories.resume import ResumeRepository
 from app.repositories.resume_export import ResumeExportRepository
+from app.repositories.usage import DailyUsageRepository
 from app.services.activity import ActivityService
 from app.services.auth import AuthService
 from app.services.csv_processing import CsvProcessingService
@@ -23,6 +33,9 @@ from app.services.resume_optimizer import ResumeOptimizerService
 from app.services.resume_export import ResumeExportService
 from app.services.resume_structure import ResumeStructureService
 from app.services.document_rendering import ResumeDocumentRenderer
+from app.services.storage import build_storage_provider
+from app.services.privacy import PrivacyService
+from app.services.usage import DailyUsageService
 
 
 def create_app(
@@ -30,11 +43,16 @@ def create_app(
     llm_provider: LLMProvider | None = None,
 ) -> FastAPI:
     active_settings = settings or get_settings()
-    database = Database(active_settings.database_path, active_settings.schema_path)
+    active_settings.validate()
+    database = Database(active_settings.database_url, active_settings.schema_path)
     repository = WorkshopRepository(database)
     career_repository = CareerRepository(database)
     resume_repository = ResumeRepository(database)
     resume_export_repository = ResumeExportRepository(database)
+    daily_usage_service = DailyUsageService(
+        DailyUsageRepository(database), active_settings
+    )
+    storage_provider = build_storage_provider(active_settings)
     auth_service = AuthService(repository, active_settings)
     active_llm_provider = llm_provider or ExternalLLMProvider(active_settings)
 
@@ -50,6 +68,7 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.settings = active_settings
+    application.state.database = database
     application.state.repository = repository
     application.state.auth_service = auth_service
     application.state.activity_service = ActivityService(
@@ -62,20 +81,35 @@ def create_app(
         repository,
         ResumeParsingService(active_settings),
         active_llm_provider,
+        daily_usage_service,
+        active_settings,
     )
     application.state.resume_repository = resume_repository
+    application.state.storage_provider = storage_provider
     application.state.resume_optimizer_service = ResumeOptimizerService(
         resume_repository,
         career_repository,
         repository,
         active_llm_provider,
+        daily_usage_service,
+        active_settings,
     )
     application.state.resume_export_service = ResumeExportService(
         resume_export_repository,
         ResumeStructureService(),
         ResumeDocumentRenderer(),
-        active_settings.resume_export_dir,
+        storage_provider,
+        active_settings.export_retention_days,
+        daily_usage_service,
     )
+    application.state.privacy_service = PrivacyService(
+        repository,
+        career_repository,
+        resume_repository,
+        resume_export_repository,
+        storage_provider,
+    )
+    application.state.daily_usage_service = daily_usage_service
 
     if active_settings.cors_origins:
         application.add_middleware(
@@ -92,6 +126,7 @@ def create_app(
         name="assets",
     )
     application.include_router(system.router)
+    application.include_router(usage.router)
     application.include_router(auth.router)
     application.include_router(career.router)
     application.include_router(resume_optimizer.router)

@@ -36,6 +36,43 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 CREATE INDEX IF NOT EXISTS idx_activity_user_created
 ON activity_logs(user_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS invite_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_hash TEXT NOT NULL UNIQUE,
+    max_uses INTEGER NOT NULL,
+    used_count INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_by_user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_invite_codes_active_expiry
+ON invite_codes(is_active, expires_at);
+
+CREATE TABLE IF NOT EXISTS daily_usage (
+    user_id INTEGER NOT NULL,
+    usage_date TEXT NOT NULL,
+    usage_type TEXT NOT NULL CHECK (
+        usage_type IN (
+            'career_analysis',
+            'suggestion_generation',
+            'suggestion_regeneration',
+            'resume_export'
+        )
+    ),
+    used_count INTEGER NOT NULL DEFAULT 0 CHECK (used_count >= 0),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, usage_date, usage_type),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_usage_date
+ON daily_usage(usage_date, usage_type);
+
 CREATE TABLE IF NOT EXISTS job_applications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
