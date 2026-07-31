@@ -1,34 +1,31 @@
 # Database
 
-Y's AI Workshop 当前使用 SQLite 保存本地原型数据。后端从 `schema.sql` 初始化数据库结构，不在 Python Router 中执行建表 SQL。
+Y's AI Workshop 在 local/test 使用 SQLite，在 production 使用 PostgreSQL。Router 不直接执行 SQL；SQLAlchemy 2 负责连接、事务和方言适配，Repository 保留显式 SQL。
 
-## 当前表结构
+## Schema
 
-- `users`：账号、PBKDF2-SHA256 密码摘要、盐、显示名、角色和启用状态。
-- `sessions`：Session token、所属用户及创建和过期时间。
-- `activity_logs`：五个 AI 工具的调用功能、状态、耗时、有限输入输出预览和元数据。
-- `job_applications`：用户的公司、岗位、地点、JD、语言和流程状态。
-- `resume_sources`：简历来源、提取文本、哈希与解析状态；不保存上传原文件。
-- `match_analyses`：结构化匹配分析的状态、摘要、Provider、模型和 Prompt 版本。
-- `match_items`：六类可解释匹配项及其原文证据。
-- `resumes`：用户简历聚合、来源申请和当前版本指针。
-- `resume_versions`：不可变的结构化文本快照、父版本和哈希。
-- `resume_suggestions`：句子级建议、双向证据、风险、决策状态和 Prompt 版本。
-- `resume_suggestion_events`：建议决策和手工编辑的追加审计事件。
-- `resume_exports`：归属用户与 ResumeVersion 的导出状态、模板、格式、安全文件名、私有对象名、确认后结构化快照和内容哈希。
+`schema.sql` 是新 SQLite 环境的完整结构，包含账号、Session、活动、Career Match、Resume Versioning、Resume Export 与哈希邀请码。SQLite 默认文件由 `DATABASE_URL` 控制，从 `backend/` 启动时为 `backend/platform.db`。
 
-所有 Session 和调用日志都属于运行数据。默认数据库路径由 `DATABASE_URL` 控制；未配置时，从 `backend/` 运行会使用 `backend/platform.db`。
+## Migrations
 
-## Migrations 和 Seeds
+- `migrations/0001_career_match.sql`
+- `migrations/0002_resume_versioning.sql`
+- `migrations/0003_resume_exports.sql`
+- `migrations/0004_private_beta.sql`
 
-- `migrations/0001_career_match.sql` 记录 Career Match 增量，`migrations/0002_resume_versioning.sql` 记录版本化简历增量，`migrations/0003_resume_exports.sql` 记录文档导出增量；`schema.sql` 始终代表新环境的完整结构。
-- `seeds/` 只允许保存不含账号密码的非敏感字典数据；当前没有必须的 seed。
-- 初始管理员只通过 `INITIAL_ADMIN_USERNAME` 和 `INITIAL_ADMIN_PASSWORD` 创建，不进入 SQL 文件。
+这些文件记录 SQLite 可读增量。production 使用 `backend/alembic/`：`20260730_01` 建立 v0.4 基线，`20260731_02` 增加 Private Beta 邀请表。
 
-## 为什么不能提交数据库文件
+```bash
+cd backend
+alembic upgrade head
+```
 
-SQLite 文件可能包含密码摘要、Session token、用户输入、模型输出预览、结构化导出快照和调用错误。提交 `platform.db`、`*.db`、`*.sqlite` 或 `*.sqlite3` 会泄露运行数据并制造不可审计的环境差异，因此这些文件必须保持在 Git 之外。生成的 DOCX/PDF 也是用户数据，保存在 `RESUME_EXPORT_DIR` 且不进入 Git。
+production 发布必须先显式迁移；应用不会静默创建 SQLite 替代 PostgreSQL。
 
-## PostgreSQL 计划
+## Seeds
 
-后续进入多用户部署阶段时，再引入正式迁移工具和 PostgreSQL。迁移将优先保持 API 契约不变，补充连接池、事务、索引、数据保留和备份策略；本阶段不引入 SQLAlchemy，也不改变现有 SQLite 行为。
+`seeds/` 只允许保存不含账号密码的非敏感字典数据。初始管理员仅从成对的 `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD` 创建；没有默认密码。邀请码由管理员 CLI 创建，数据库只保存哈希。
+
+## 为什么不能提交数据库
+
+数据库包含密码摘要、Session、简历、JD、分析、版本和结构化导出快照。`platform.db`、`*.db`、`*.sqlite*`、生产备份和导出文件都属于敏感运行数据，不能进入 Git，也不能复制到个人开发目录。测试只使用系统临时目录和合成数据。

@@ -1,6 +1,6 @@
 # ADR-005: Production beta architecture
 
-- 状态：Accepted for Phase 5A implementation
+- 状态：Accepted and implemented in Phase 5A
 - 日期：2026-07-31
 
 ## 背景

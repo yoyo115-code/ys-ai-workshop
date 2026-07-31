@@ -2,6 +2,32 @@
 
 All notable changes to Y's AI Workshop are documented in this file.
 
+## [v0.5.0-draft] - 2026-07-31
+
+### Added
+
+- PostgreSQL production compatibility through a SQLAlchemy 2 connection/transaction adapter and Alembic migrations.
+- Local and S3-compatible storage providers with user-scoped random object keys and short-lived presigned downloads.
+- Invitation-only registration with hashed, expiring, usage-limited codes and an administrator CLI.
+- Seven-day default export retention, expired-download rejection and an idempotent cleanup job.
+- Job Application, Resume, export and account deletion with physical export-object cleanup.
+- Log minimization and deterministic contact/credential redaction.
+- Liveness/readiness probes, non-root Docker image and PostgreSQL/browser/container CI.
+- Private Beta badge, de-identification warning, retention notice, invite field and account deletion entry.
+
+### Testing
+
+- 122 discovered backend tests: 121 pass locally and one PostgreSQL integration test runs when a PostgreSQL service is available.
+- SQLite and PostgreSQL-offline migration validation.
+- Browser acceptance for Private Beta UI, assets, console and 390px responsive layout.
+
+### Known limitations
+
+- No cloud environment, public URL, managed backup or monitoring resource is created by this repository.
+- S3 contract is locally mocked; live object-store and PostgreSQL execution are delegated to controlled deployment/CI environments.
+- Retention cleanup requires an external scheduler.
+- No real-user Beta research has been performed yet.
+
 ## [v0.4.0] - 2026-07-31
 
 ### Added

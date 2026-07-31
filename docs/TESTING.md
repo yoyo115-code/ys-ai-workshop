@@ -1,68 +1,85 @@
 # Testing
 
-## 当前已实现
+## 后端套件
 
-测试使用 Python `unittest`、FastAPI TestClient、系统临时目录中的独立 SQLite 文件和 mock LLM Provider。测试不读取真实 API Key，不调用 DeepSeek 或 Claude，不保留简历、JD 或模型响应。
+测试使用合成数据、mock LLM Provider 和系统临时目录，不读取真实 Key，不调用 DeepSeek/Claude，不保留用户材料。
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend \
+python3 -m unittest discover -s tests/backend -v
 ```
 
-当前 86 项后端/静态交付自动化测试包含：
+当前发现 122 项：本机 121 通过，1 项需要 PostgreSQL service 的 integration test 明确 skip。GitHub Actions 提供 PostgreSQL 并执行该用例。
 
-- 认证、权限、管理员隔离和五个 AI Labs 回归。
-- Career Match 创建、PDF/DOCX 解析、结构化输出、证据、Prompt Injection、失败与隐私日志。
-- Resume Suggestion 严格 Schema，原句、JD 证据和简历证据定位。
-- 新数字与新技术名风险、clarification 和高风险接受阻断。
-- 接受、拒绝、编辑、Undo、重新生成、幂等与非法状态转换。
-- 版本内容、事务回滚、用户隔离、历史排序、Diff 和恢复。
-- 前端接受、拒绝、Undo 和生成版本的静态交互契约。
-- `GET /`、CSS、`config.js` 和 `app.js` 的状态码与 MIME。
-- HTML 资源真实存在、HTTP/file URL 解析、无本地绝对路径，以及 `config.js -> app.js` 的 `defer` 顺序。
-- ResumeVersion 所有权、结构化原文追溯、不可靠解析提示和用户校对快照。
-- Professional/Minimal ATS DOCX 生成、回读、标题、真实项目符号、空章节、中英文与长内容。
-- PDF 文本回读、中文字体、长内容分页和渲染能力不可用的明确失败。
-- 安全文件名、目录穿越、原子写入失败状态、事务回滚、重复导出、历史、下载响应和删除。
+覆盖范围：
 
-## 浏览器验收
+- 既有 86 项认证、Career Match、Resume Optimizer、Resume Export、AI Labs 和静态资源回归。
+- production 配置 fail-fast、SQLite 禁止回退、错误不泄露配置值。
+- SQLAlchemy 参数适配、SQLite round-trip 和 PostgreSQL Repository integration。
+- Alembic SQLite upgrade、PostgreSQL offline SQL 和 Private Beta revision。
+- Local/S3 storage contract、用户命名空间、随机 key、目录穿越和 presigned URL。
+- 邀请必填/无效/过期/用尽/成功、明文不落库和重复用户名事务回滚。
+- 导出到期、410 响应、7 天默认保留和清理幂等。
+- Application、Resume、Account 删除及物理对象清理。
+- 文档日志不保留正文，其他预览脱敏邮箱、电话和凭据。
+- live/ready、Storage 故障 503 和公开配置无 Secret。
 
-`tests/browser/test_frontend_delivery_e2e.py` 提供 5 项可执行 Playwright 用例。Playwright 是可选依赖，未安装时用例会明确 skip，不会影响不需要浏览器二进制的 86 项测试。
+## PostgreSQL
+
+本地有 PostgreSQL 时：
+
+```bash
+cd backend
+APP_ENV=test DATABASE_URL="$TEST_POSTGRES_URL" alembic upgrade head
+cd ..
+PYTHONPATH=backend python3 -m unittest tests.backend.test_postgresql_integration -v
+```
+
+不要把真实生产连接串用于测试。CI 使用一次性 `postgres:17-alpine` service 和合成账号。
+
+## Browser
 
 ```bash
 pip install -r tests/browser/requirements.txt
 python3 -m playwright install chromium
 ```
 
-在另一个终端从 `backend/` 启动 `uvicorn app.main:app --reload`，然后执行：
+启动测试服务后：
 
 ```bash
 YS_AI_E2E_BASE_URL=http://127.0.0.1:8000 \
 python3 -m unittest tests.browser.test_frontend_delivery_e2e -v
 ```
 
-浏览器测试覆盖：样式实际应用、SVG 尺寸上限、无横向溢出、登录/注册切换、Career Match 默认显示、Resume Optimizer 与 AI Labs 导航、Resume Export 入口与模板/格式选项，以及静态资源失败和控制台阻断性错误。
+7 项 Playwright 用例覆盖样式、图标边界、邀请注册、Private Beta 标识、隐私/保留提示、账号删除入口、Career/Optimizer/AI Labs 导航、Resume Export、静态资源、控制台 error 和 390px 响应式。
 
-真实浏览器的 Phase 4 验收还应使用合成数据完成：登录、打开 ResumeVersion、结构化预览、DOCX/PDF 生成、下载提示、桌面和 390 px 小屏布局。验收期间应确认 `/assets` 无 404、控制台无 error/warn、页面无横向失控溢出。
+本轮还通过 in-app Browser 对真实 HTTP 页面人工验收：CSS/config.js/app.js 均 200；桌面 1280px 和小屏 390px 无横向溢出，最大 SVG 32px，控制台没有 error。
 
-## 质量检查
+## 静态与安全检查
 
 ```bash
 node --check frontend/assets/js/config.js
 node --check frontend/assets/js/app.js
 git diff --check
+git ls-files
 ```
 
-Python 源码用内置 `compile()` 执行不生成 `__pycache__` 的语法检查。SQLite 检查在内存数据库中执行完整 `schema.sql`，并重复执行 `0001`、`0002` 和 `0003` 迁移检查幂等表/索引。API 契约检查从 FastAPI OpenAPI 路径中确认新旧接口存在。
+Python 语法检查应避免保留 `__pycache__`；检查后删除生成缓存。敏感扫描只报告文件和类型，绝不输出完整值。Git 跟踪检查必须拒绝 `.env`、数据库、导出 DOCX/PDF、用户材料、浏览器二进制、截图和依赖目录。
 
-DOCX 内容用 `python-docx` 回读，PDF 内容用 PDF 解析器回读。发布前还应把 Professional 中文、Minimal ATS 英文 DOCX/PDF 渲染为页面图像，人工检查空白标题、符号、日期对齐、分页、溢出和缺字。
+## Docker / CI
 
-## 当前限制
+CI 分为：
 
-- Playwright 框架已提供，但浏览器运行时需要开发者在本机单独安装；仓库不提交二进制、截图或报告。
-- 模型语义质量在单元测试中由固定 mock 输出验证，不等于线上模型质量评测。
-- SQLite 并发写入和大规模数据尚未压测。
-- Word/WPS/LibreOffice 兼容性需要在目标操作系统上进行发布前抽样；自动测试重点保证 Open XML、内容、样式标识和安全契约。
+1. 固定 Python 依赖安装；
+2. SQLite 完整测试；
+3. PostgreSQL migration/integration；
+4. Python/JavaScript 语法；
+5. Playwright Chromium；
+6. Git 跟踪安全；
+7. Docker build。
 
-## 后续计划
+本机没有 Docker daemon，因此容器构建和真实 PostgreSQL execution 不能在本地宣称通过；它们由 GitHub Actions 验证。Dockerfile 的静态检查仍需确认非 root `USER`、HEALTHCHECK、固定基线和 `.dockerignore`。
 
-在 CI 中安装 Chromium 并执行已有浏览器用例，再增加 Provider 合约测试、文档多平台打开矩阵、数据库并发/恢复测试和隐私保留周期验证。
+## 发布验收
+
+在受控 Beta 环境使用去标识化材料完成：migration、live/ready、邀请码注册、Career Match、建议/版本、DOCX/PDF、重复下载、主动删除、到期清理和账号删除。检查日志不得出现简历、JD、密码、邀请码、Token、Key 或 presigned URL。

@@ -1,39 +1,59 @@
 # Security
 
-## 当前边界
+## 生产配置
 
-Y's AI Workshop 是本地优先原型。它保存账号、Session、简历、JD、AI 分析、简历版本和导出文件，这些均应视为私密求职数据。当前安全控制不等价于公网多租户部署方案。
+- 环境变量只从 `backend/app/core/config.py` 读取。
+- production 必须使用 PostgreSQL、S3-compatible 存储、`invite_only`、明确 CORS 和至少 32 字符的 `SESSION_SECRET`。
+- 缺少关键配置时启动失败；错误只列变量名，不输出值。
+- 初始管理员没有默认账号/密码，两项必须成对配置。
+- `.env`、数据库、备份、导出、日志、虚拟环境、缓存和依赖目录不进入 Git 或 Docker build context。
 
-## 凭据与认证
+## 认证与邀请
 
-- API Key、初始管理员和数据库路径只从 `backend/app/core/config.py` 读取。
-- 仓库不含默认管理员密码或演示账号密码。只在 `INITIAL_ADMIN_USERNAME` 和 `INITIAL_ADMIN_PASSWORD` 同时有效时初始化管理员。
-- 密码使用 PBKDF2-SHA256 与独立盐值；Session token 不写入业务日志。
-- `.env`、SQLite 文件、虚拟环境、缓存、日志和 `backend/generated/` 被 Git 忽略。`.env.example` 只保存变量名或安全非密钥示例。
+- 密码使用 PBKDF2-SHA256 和独立 salt。
+- Session 使用高熵随机 token，不写业务日志。
+- `REGISTRATION_MODE` 支持 `open`、`invite_only`、`disabled`；production 只允许邀请制。
+- 邀请码使用 `SESSION_SECRET` 做 HMAC-SHA256，数据库只保存哈希、次数和到期时间。
+- 邀请使用次数条件更新与用户创建同一事务；失败不会错误消耗。
+- 明文邀请码由管理员 CLI 显示一次，不能进入 Issue、日志、测试或截图。
 
-## 用户数据隔离
+## 用户隔离
 
-- Career Application、Resume、ResumeVersion、Suggestion 和 Resume Export 均从当前 Session 用户反向校验所有权。
-- 越权资源统一返回 `404`，减少资源枚举信号。
-- Career Match 和 Resume Optimizer 活动日志不保存完整简历、JD、Prompt 或模型完整响应。导出服务不把简历内容写入 activity log preview。
+- Application、Resume、Version、Suggestion 和 Export 查询均反向校验当前用户。
+- 越权资源返回 `404`，减少枚举信号。
+- object key 强制 `users/{user_id}/resume-exports/{random}`；下载文件名不参与路径。
+- S3 bucket 必须私有，下载使用短期 presigned URL；主动删除对象使 URL 失效。
+- LocalStorageProvider 使用 key 哈希映射到受控根目录，拒绝跨用户和目录穿越。
 
-## Resume Export 文件安全
+## 日志最小化
 
-- 对外下载名会规范 Unicode，删除路径分隔符、控制字符和非法字符，折叠连续分隔符并限制长度。
-- 内部文件使用 export ID 和随机后缀，不使用用户文件名，不向 API 暴露 `object_key` 或本地绝对路径。
-- 所有读写路径在解析后必须仍属于 `RESUME_EXPORT_DIR`，否则拒绝，用于防止目录穿越。
-- 渲染先写入专用目录中的临时文件，校验非空后原子移动。失败会清理临时/最终路径并把记录标记为 `failed`。
-- 模板只渲染用户确认的 `StructuredResume`，不包含 API Key、Prompt、风险分析、内部 ID 或数据库路径。
-- DOCX 和 PDF 响应使用准确 `Content-Type` 和受控 `Content-Disposition`。
+- Career Match / Resume Optimizer 只记录资源 ID、状态、耗时、Provider、模型和 Prompt 版本。
+- Resume、PDF、CSV 不保存输入/输出正文预览。
+- 其他有限预览在入库前脱敏邮箱、电话、`sk-`、API Key、Token、Password 和 Secret。
+- 不记录完整模型响应、Session、邀请码、API Key、对象存储凭据或 presigned URL。
 
-## 数据清理
+## 数据删除与保留
 
-- 用户可删除导出记录；服务会先校验路径再清理对应文件并软删除记录。
-- `expires_at` 已为保留周期预留，但本地原型尚无定时清理任务。用户应手动删除不再需要的文件。
-- 开发和测试使用合成简历与系统临时目录；不得把真实简历、JD、模型响应或导出文件提交 Git。
+- 导出默认保留 7 天，到期后拒绝下载。
+- 清理 job 幂等删除对象并软删除记录；用户可立即删除导出。
+- 删除 Application、Resume 或 Account 时先删除关联导出对象，再执行数据库级联。
+- 对象删除失败返回 `data_deletion_incomplete` 并保留数据库记录，便于重试。
+- 云端备份可能有独立保留窗口；真实邀请前必须公布并完成恢复/销毁演练。
+
+## 容器与运行
+
+- Docker 使用固定 Python 基线、固定 Python 依赖、非 root 用户和 readiness HEALTHCHECK。
+- production migration 独立运行，应用不自动降级或创建 SQLite。
+- live/ready 响应不暴露连接 URL、bucket 或路径。
+- GitHub Actions 使用合成凭据、mock LLM 和临时 PostgreSQL；不调用真实 Provider。
 
 ## 已知风险
 
-- SQLite、Header Session 和本地文件存储只适合单机原型。公网部署前需要 HTTPS、安全 Cookie 或标准 token 流程、PostgreSQL、对象存储、私有网络、配额/限流、恶意文件扫描和自动保留周期。
-- AI Labs 历史行为仍保存有限输入/输出预览，后续需要统一隐私级别与删除策略。
-- 文档生成库与系统字体应持续更新并在目标平台测试。包含 CJK 的 PDF 找不到可用 Unicode 字体时会明确失败，不生成缺字文件。
+- Header Session 尚未迁移 Secure Cookie；公开互联网前需评估 CSRF、Cookie 属性和会话撤销。
+- 尚未实现请求限流、恶意文件/病毒扫描、WAF、审计日志后端或安全告警平台。
+- S3 contract 通过 fake client 测试，但尚未完成特定云厂商的权限/加密/生命周期验收。
+- cleanup job 需要外部 scheduler；仓库不创建告警和备份资源。
+- AI Provider 会接收用户主动提交的分析内容；邀请真实用户前需完成数据处理条款和区域评估。
+- 当前没有公开部署或真实用户数据，不能把文档中的目标控制描述为已运行的云控制。
+
+详细隐私边界见 [PRIVACY.md](PRIVACY.md)，故障流程见 [BETA_RUNBOOK.md](BETA_RUNBOOK.md)。
