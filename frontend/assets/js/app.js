@@ -3,6 +3,11 @@ const AUTH_TOKEN_KEY = "nova_auth_token";
 const API_CONFIG = window.YS_AI_CONFIG;
 let currentUser = null;
 let registrationMode = false;
+let publicConfiguration = {
+  registration_mode: "open",
+  export_retention_days: 7,
+  private_beta: false
+};
 let currentCareerApplicationId = null;
 let optimizerWorkspace = null;
 let optimizerVersions = [];
@@ -288,15 +293,38 @@ function updateAuthUI() {
 }
 
 function setRegistrationMode(enabled) {
+  if (enabled && publicConfiguration.registration_mode === "disabled") return;
   registrationMode = enabled;
   document.getElementById("display-name").hidden = !enabled;
   document.getElementById("confirm-password").hidden = !enabled;
+  document.getElementById("invite-code").hidden = !enabled || publicConfiguration.registration_mode !== "invite_only";
   document.getElementById("login-btn").textContent = enabled ? "创建账号" : "登录";
   document.getElementById("auth-switch-btn").textContent = enabled ? "返回登录" : "注册新账号";
   document.getElementById("password").autocomplete = enabled ? "new-password" : "current-password";
   document.getElementById("auth-message").textContent = enabled
-    ? "账号仅支持小写字母、数字和下划线；密码至少 8 位并包含字母和数字。"
+    ? (publicConfiguration.registration_mode === "invite_only"
+      ? "Private Beta 仅限受邀用户；请输入管理员单独发送的邀请码。"
+      : "账号仅支持小写字母、数字和下划线；密码至少 8 位并包含字母和数字。")
     : "请输入账号密码，或注册新账号。";
+}
+
+async function loadPublicConfiguration() {
+  try {
+    const response = await fetch(apiUrl(API_CONFIG.endpoints.publicConfig));
+    if (!response.ok) throw new Error("configuration unavailable");
+    publicConfiguration = await response.json();
+    const retentionDays = publicConfiguration.export_retention_days || 7;
+    document.getElementById("retention-summary").textContent =
+      `导出文件默认保留 ${retentionDays} 天；可随时删除申请、简历、导出或账号。`;
+    const switchButton = document.getElementById("auth-switch-btn");
+    switchButton.hidden = publicConfiguration.registration_mode === "disabled";
+    if (publicConfiguration.registration_mode === "invite_only") {
+      switchButton.textContent = "使用邀请码注册";
+    }
+  } catch {
+    document.getElementById("auth-message").textContent =
+      "服务配置暂不可用，请确认后端已启动且通过就绪检查。";
+  }
 }
 
 async function submitAuth() {
@@ -306,6 +334,7 @@ async function submitAuth() {
   const password = document.getElementById("password").value;
   const displayName = document.getElementById("display-name").value.trim();
   const confirmPassword = document.getElementById("confirm-password").value;
+  const inviteCode = document.getElementById("invite-code").value.trim();
 
   if (registrationMode && password !== confirmPassword) {
     message.textContent = "两次输入的密码不一致";
@@ -326,7 +355,7 @@ async function submitAuth() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(registrationMode
-        ? { username, password, display_name: displayName }
+        ? { username, password, display_name: displayName, invite_code: inviteCode }
         : { username, password })
     });
     const data = await response.json();
@@ -340,6 +369,33 @@ async function submitAuth() {
     message.textContent = error.message;
   } finally {
     button.disabled = false;
+  }
+}
+
+async function deleteAccount() {
+  if (!currentUser) return;
+  const confirmed = window.confirm(
+    "这会删除账号、申请、简历版本、建议和导出文件，且无法撤销。确定继续？"
+  );
+  if (!confirmed) return;
+  const password = window.prompt("请输入当前密码以确认删除账号：");
+  if (!password) return;
+  try {
+    const response = await fetch(apiUrl(API_CONFIG.endpoints.auth.account), {
+      method: "DELETE",
+      headers: authHeaders(true),
+      body: JSON.stringify({ password })
+    });
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    currentUser = null;
+    updateAuthUI();
+    renderCareerHistory([]);
+    resetOptimizerUI();
+    window.alert("账号及关联数据已删除。");
+  } catch (error) {
+    window.alert(error.message || "数据删除未完成，请稍后重试。");
   }
 }
 
@@ -1430,6 +1486,7 @@ async function refreshAdminDashboard() {
 document.getElementById("login-btn").addEventListener("click", submitAuth);
 document.getElementById("auth-switch-btn").addEventListener("click", () => setRegistrationMode(!registrationMode));
 document.getElementById("logout-btn").addEventListener("click", logout);
+document.getElementById("delete-account-btn").addEventListener("click", deleteAccount);
 document.getElementById("refresh-admin-btn").addEventListener("click", refreshAdminDashboard);
 document.getElementById("career-analyze-btn").addEventListener("click", submitCareerMatch);
 document.getElementById("career-resume-file").addEventListener("change", onCareerFileChosen);
@@ -1494,4 +1551,4 @@ document.getElementById("password").addEventListener("keydown", (event) => {
 document.getElementById("confirm-password").addEventListener("keydown", (event) => {
   if (event.key === "Enter") submitAuth();
 });
-loadCurrentUser();
+loadPublicConfiguration().finally(loadCurrentUser);

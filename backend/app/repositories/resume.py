@@ -1,6 +1,5 @@
 import hashlib
 import json
-import sqlite3
 from typing import Any
 
 from app.repositories.database import Database
@@ -113,6 +112,14 @@ class ResumeRepository:
                 (resume_id, user_id),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def delete_resume(self, resume_id: int, user_id: int) -> bool:
+        with self.database.connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM resumes WHERE id = ? AND user_id = ?",
+                (resume_id, user_id),
+            )
+        return cursor.rowcount == 1
 
     def list_suggestions(
         self, application_id: int, version_id: int, user_id: int
@@ -577,13 +584,13 @@ class ResumeRepository:
         return dict(version)
 
     def _after_version_insert(
-        self, connection: sqlite3.Connection, version_id: int
+        self, connection: Any, version_id: int
     ) -> None:
         return None
 
     @staticmethod
     def _event(
-        connection: sqlite3.Connection,
+        connection: Any,
         suggestion_id: int,
         event_type: str,
         previous_value: dict[str, Any],

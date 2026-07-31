@@ -1,9 +1,9 @@
 import hashlib
-import os
 import re
 import secrets
 import tempfile
 import unicodedata
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +18,7 @@ from app.schemas.resume_export import CreateResumeExportRequest, StructuredResum
 from app.services.auth import utc_now
 from app.services.document_rendering import DocumentRenderError, ResumeDocumentRenderer
 from app.services.resume_structure import ResumeStructureService
+from app.services.storage import StorageError, StorageProvider
 
 
 class ResumeExportService:
@@ -26,12 +27,14 @@ class ResumeExportService:
         repository: ResumeExportRepository,
         structure_service: ResumeStructureService,
         renderer: ResumeDocumentRenderer,
-        export_dir: Path,
+        storage: StorageProvider,
+        retention_days: int = 7,
     ) -> None:
         self.repository = repository
         self.structure_service = structure_service
         self.renderer = renderer
-        self.export_dir = export_dir.resolve()
+        self.storage = storage
+        self.retention_days = retention_days
 
     def preview(self, user: PublicUser, version_id: int) -> dict[str, Any]:
         context = self._version(user, version_id)
@@ -97,7 +100,9 @@ class ResumeExportService:
             context["version_number"],
             data.format,
         )
-        now = utc_now()
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat()
+        expires_at = (now_dt + timedelta(days=self.retention_days)).isoformat()
         try:
             record = self.repository.create_export(
                 user["id"],
@@ -110,23 +115,25 @@ class ResumeExportService:
                 structured_content,
                 structure_hash,
                 now,
+                expires_at,
             )
         except ResumeExportConflictError as exc:
             raise HTTPException(status_code=404, detail="简历版本不存在") from exc
 
-        self.export_dir.mkdir(parents=True, exist_ok=True)
         export_id = record["id"]
-        object_key = f"resume-export-{export_id}-{secrets.token_hex(8)}.{data.format}"
-        final_path = self._safe_path(object_key)
-        descriptor, temporary_name = tempfile.mkstemp(
-            prefix=f"resume-export-{export_id}-",
-            suffix=f".{data.format}.tmp",
-            dir=self.export_dir,
+        object_key = (
+            f"users/{user['id']}/resume-exports/"
+            f"{secrets.token_urlsafe(24)}.{data.format}"
         )
-        os.close(descriptor)
-        temporary_path = Path(temporary_name)
+        temporary_path: Path | None = None
         try:
             self.repository.mark_generating(export_id, user["id"], utc_now())
+            with tempfile.NamedTemporaryFile(
+                prefix=f"ys-resume-export-{export_id}-",
+                suffix=f".{data.format}",
+                delete=False,
+            ) as temporary:
+                temporary_path = Path(temporary.name)
             self.renderer.render(
                 resume,
                 data.template_key,
@@ -135,17 +142,21 @@ class ResumeExportService:
                 data.language,
                 temporary_path,
             )
-            if not temporary_path.exists() or temporary_path.stat().st_size == 0:
+            content = temporary_path.read_bytes()
+            if not content:
                 raise DocumentRenderError(
                     "empty_export_file", "Document renderer produced an empty file"
                 )
-            os.replace(temporary_path, final_path)
-            content_hash = self._hash_file(final_path)
+            self.storage.put(user["id"], object_key, content)
             self.repository.complete_export(
-                export_id, user["id"], object_key, content_hash, utc_now()
+                export_id,
+                user["id"],
+                object_key,
+                self._hash_bytes(content),
+                utc_now(),
             )
         except DocumentRenderError as exc:
-            self._cleanup_paths(temporary_path, final_path)
+            self._delete_partial(user["id"], object_key)
             self.repository.fail_export(export_id, user["id"], exc.code, utc_now())
             status = 503 if exc.code.endswith("unavailable") else 422
             raise HTTPException(
@@ -153,7 +164,7 @@ class ResumeExportService:
                 detail={"code": exc.code, "message": exc.message},
             ) from exc
         except Exception as exc:
-            self._cleanup_paths(temporary_path, final_path)
+            self._delete_partial(user["id"], object_key)
             try:
                 self.repository.fail_export(
                     export_id, user["id"], "export_generation_failed", utc_now()
@@ -167,6 +178,10 @@ class ResumeExportService:
                     "message": "简历导出失败，未保留不完整文件",
                 },
             ) from exc
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+
         completed = self.repository.get_export(export_id, user["id"])
         if completed is None:
             raise HTTPException(status_code=500, detail="导出记录读取失败")
@@ -188,29 +203,37 @@ class ResumeExportService:
             raise HTTPException(status_code=404, detail="导出记录不存在")
         return self._response(row)
 
-    def download(self, user: PublicUser, export_id: int) -> tuple[Path, dict[str, Any]]:
+    def download(
+        self, user: PublicUser, export_id: int
+    ) -> tuple[bytes | None, str | None, dict[str, Any]]:
         row = self.repository.get_export(export_id, user["id"])
         if row is None:
             raise HTTPException(status_code=404, detail="导出记录不存在")
+        if self._is_expired(row):
+            raise HTTPException(
+                status_code=410,
+                detail={"code": "export_expired", "message": "导出文件已到期，请重新生成"},
+            )
         if row["status"] != "ready" or not row["object_key"]:
             raise HTTPException(status_code=409, detail="导出文件尚未就绪")
-        path = self._safe_path(row["object_key"])
-        if not path.is_file():
+        try:
+            url = self.storage.generate_download_url(user["id"], row["object_key"])
+            content = None if url else self.storage.get(user["id"], row["object_key"])
+        except StorageError as exc:
             raise HTTPException(
                 status_code=410,
                 detail={"code": "export_file_missing", "message": "导出文件已不存在"},
-            )
-        return path, row
+            ) from exc
+        return content, url, row
 
     def delete_export(self, user: PublicUser, export_id: int) -> None:
         row = self.repository.get_export(export_id, user["id"])
         if row is None:
             raise HTTPException(status_code=404, detail="导出记录不存在")
         if row["object_key"]:
-            path = self._safe_path(row["object_key"])
             try:
-                path.unlink(missing_ok=True)
-            except OSError as exc:
+                self.storage.delete(user["id"], row["object_key"])
+            except Exception as exc:
                 raise HTTPException(
                     status_code=500,
                     detail={"code": "export_delete_failed", "message": "导出文件删除失败"},
@@ -218,21 +241,31 @@ class ResumeExportService:
         if not self.repository.mark_deleted(export_id, user["id"], utc_now()):
             raise HTTPException(status_code=409, detail="导出记录状态已变化")
 
+    def cleanup_expired(self, now: str | None = None, limit: int = 200) -> dict[str, int]:
+        cutoff = now or utc_now()
+        deleted = 0
+        failed = 0
+        for row in self.repository.list_expired(cutoff, limit):
+            try:
+                if row["object_key"]:
+                    self.storage.delete(row["user_id"], row["object_key"])
+                if self.repository.mark_deleted(row["id"], row["user_id"], cutoff):
+                    deleted += 1
+            except Exception:
+                failed += 1
+        return {"deleted": deleted, "failed": failed}
+
     def _version(self, user: PublicUser, version_id: int) -> dict[str, Any]:
         context = self.repository.get_version_context(version_id, user["id"])
         if context is None:
             raise HTTPException(status_code=404, detail="简历版本不存在")
         return context
 
-    def _safe_path(self, object_key: str) -> Path:
-        if not object_key or Path(object_key).name != object_key:
-            raise HTTPException(status_code=400, detail="非法导出文件路径")
-        candidate = (self.export_dir / object_key).resolve()
+    def _delete_partial(self, user_id: int, object_key: str) -> None:
         try:
-            candidate.relative_to(self.export_dir)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="非法导出文件路径") from exc
-        return candidate
+            self.storage.delete(user_id, object_key)
+        except Exception:
+            pass
 
     @staticmethod
     def safe_filename(
@@ -257,9 +290,11 @@ class ResumeExportService:
         normalized = unicodedata.normalize("NFKC", value or "")
         normalized = normalized.replace("..", " ")
         normalized = re.sub(r"[\\/:*?\"<>|\x00-\x1f\x7f]+", " ", normalized)
-        normalized = re.sub(r"[^\w\u3400-\u9fff-]+", "_", normalized, flags=re.UNICODE)
+        normalized = re.sub(
+            r"[^\w\u3400-\u9fff-]+", "_", normalized, flags=re.UNICODE
+        )
         normalized = re.sub(r"_+", "_", normalized).strip("._- ")
-        return (normalized[:40].rstrip("._- ") or fallback)
+        return normalized[:40].rstrip("._- ") or fallback
 
     @staticmethod
     def _has_renderable_content(resume: StructuredResume) -> bool:
@@ -276,27 +311,23 @@ class ResumeExportService:
         )
 
     @staticmethod
-    def _hash_file(path: Path) -> str:
-        digest = hashlib.sha256()
-        with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
-
-    @staticmethod
     def _hash_bytes(value: bytes) -> str:
         return hashlib.sha256(value).hexdigest()
 
     @staticmethod
-    def _cleanup_paths(*paths: Path) -> None:
-        for path in paths:
-            try:
-                path.unlink(missing_ok=True)
-            except OSError:
-                pass
+    def _is_expired(row: dict[str, Any]) -> bool:
+        expires_at = row.get("expires_at")
+        if not expires_at:
+            return False
+        try:
+            return datetime.fromisoformat(expires_at) <= datetime.now(timezone.utc)
+        except ValueError:
+            return True
 
-    @staticmethod
-    def _response(row: dict[str, Any]) -> dict[str, Any]:
+    @classmethod
+    def _response(cls, row: dict[str, Any]) -> dict[str, Any]:
+        expired = cls._is_expired(row)
+        status = "expired" if expired and row["status"] == "ready" else row["status"]
         return {
             "id": row["id"],
             "resume_id": row["resume_id"],
@@ -308,7 +339,7 @@ class ResumeExportService:
             "format": row["format"],
             "paper_size": row["paper_size"],
             "language": row["language"],
-            "status": row["status"],
+            "status": status,
             "filename": row["filename"],
             "source_content_hash": row["source_content_hash"],
             "content_hash": row["content_hash"],
@@ -318,7 +349,7 @@ class ResumeExportService:
             "expires_at": row["expires_at"],
             "download_url": (
                 f"/career/resume-exports/{row['id']}/download"
-                if row["status"] == "ready"
+                if status == "ready"
                 else None
             ),
         }

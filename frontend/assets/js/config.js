@@ -17,7 +17,8 @@
         login: "/auth/login",
         register: "/auth/register",
         logout: "/auth/logout",
-        me: "/auth/me"
+        me: "/auth/me",
+        account: "/auth/account"
       }),
       tools: Object.freeze({
         resume: "/resume",
@@ -39,7 +40,8 @@
         users: "/admin/users",
         logs: "/admin/logs"
       }),
-      health: "/health"
+      health: "/health",
+      publicConfig: "/config/public"
     })
   });
 

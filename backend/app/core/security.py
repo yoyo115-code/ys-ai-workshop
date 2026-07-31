@@ -22,6 +22,20 @@ def new_session_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def new_invite_code() -> str:
+    return secrets.token_urlsafe(24)
+
+
+def hash_invite_code(invite_code: str, session_secret: str) -> str:
+    if not session_secret:
+        raise ValueError("SESSION_SECRET is required for invitation codes")
+    return hmac.new(
+        session_secret.encode("utf-8"),
+        invite_code.strip().encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 def validate_username(username: str) -> None:
     if not re.fullmatch(r"[a-z0-9_]{3,32}", username):
         raise ValueError("账号需为 3-32 位小写字母、数字或下划线")

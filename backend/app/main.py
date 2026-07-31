@@ -23,6 +23,8 @@ from app.services.resume_optimizer import ResumeOptimizerService
 from app.services.resume_export import ResumeExportService
 from app.services.resume_structure import ResumeStructureService
 from app.services.document_rendering import ResumeDocumentRenderer
+from app.services.storage import build_storage_provider
+from app.services.privacy import PrivacyService
 
 
 def create_app(
@@ -30,11 +32,13 @@ def create_app(
     llm_provider: LLMProvider | None = None,
 ) -> FastAPI:
     active_settings = settings or get_settings()
-    database = Database(active_settings.database_path, active_settings.schema_path)
+    active_settings.validate()
+    database = Database(active_settings.database_url, active_settings.schema_path)
     repository = WorkshopRepository(database)
     career_repository = CareerRepository(database)
     resume_repository = ResumeRepository(database)
     resume_export_repository = ResumeExportRepository(database)
+    storage_provider = build_storage_provider(active_settings)
     auth_service = AuthService(repository, active_settings)
     active_llm_provider = llm_provider or ExternalLLMProvider(active_settings)
 
@@ -50,6 +54,7 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.settings = active_settings
+    application.state.database = database
     application.state.repository = repository
     application.state.auth_service = auth_service
     application.state.activity_service = ActivityService(
@@ -64,6 +69,7 @@ def create_app(
         active_llm_provider,
     )
     application.state.resume_repository = resume_repository
+    application.state.storage_provider = storage_provider
     application.state.resume_optimizer_service = ResumeOptimizerService(
         resume_repository,
         career_repository,
@@ -74,7 +80,15 @@ def create_app(
         resume_export_repository,
         ResumeStructureService(),
         ResumeDocumentRenderer(),
-        active_settings.resume_export_dir,
+        storage_provider,
+        active_settings.export_retention_days,
+    )
+    application.state.privacy_service = PrivacyService(
+        repository,
+        career_repository,
+        resume_repository,
+        resume_export_repository,
+        storage_provider,
     )
 
     if active_settings.cors_origins:

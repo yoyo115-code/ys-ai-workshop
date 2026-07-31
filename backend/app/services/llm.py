@@ -1,8 +1,6 @@
 from typing import Protocol
 
-import anthropic
 from fastapi import HTTPException
-from openai import OpenAI
 
 from app.core.config import Settings
 
@@ -18,6 +16,8 @@ class ExternalLLMProvider:
 
     def generate(self, prompt: str, provider: str) -> str:
         if provider == "deepseek":
+            from openai import OpenAI
+
             if not self.settings.deepseek_api_key:
                 raise HTTPException(status_code=503, detail="未配置 DEEPSEEK_API_KEY")
             client = OpenAI(
@@ -40,6 +40,8 @@ class ExternalLLMProvider:
             return response.choices[0].message.content or ""
 
         if provider == "anthropic":
+            import anthropic
+
             if not self.settings.anthropic_api_key:
                 raise HTTPException(status_code=503, detail="未配置 ANTHROPIC_API_KEY")
             client = anthropic.Anthropic(

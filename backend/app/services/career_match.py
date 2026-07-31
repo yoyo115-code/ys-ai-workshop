@@ -1,10 +1,10 @@
 import json
-import sqlite3
 import time
 from typing import Any
 
 from fastapi import HTTPException, UploadFile
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from app.models.domain import PublicUser
 from app.prompts.career_match_v1 import PROMPT_VERSION, build_career_match_prompt
@@ -160,7 +160,7 @@ class CareerMatchService:
                 PROMPT_VERSION,
                 created_at,
             )
-        except sqlite3.IntegrityError as exc:
+        except IntegrityError as exc:
             raise HTTPException(
                 status_code=409, detail="该申请正在分析，请勿重复提交"
             ) from exc

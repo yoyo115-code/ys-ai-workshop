@@ -26,7 +26,7 @@
         </div>
 
         <div class="brand-text">
-          <div class="brand-kicker">Y's AI Workshop</div>
+          <div class="brand-kicker">Y's AI Workshop <span class="beta-badge">Private Beta</span></div>
           <h1>Y's AI Workshop</h1>
           <p>AI-powered career and productivity workspace</p>
         </div>
@@ -34,13 +34,14 @@
 
       <aside class="service-status" aria-label="账户状态">
         <div class="status-label"><span class="status-dot"></span><span id="status-text">请登录后使用</span></div>
-        <div class="status-meta">FastAPI 后端 · SQLite 用户数据</div>
+        <div class="status-meta">FastAPI 后端 · 私有求职数据空间</div>
         <div id="login-panel" class="auth-panel">
           <div class="auth-fields">
             <input id="display-name" autocomplete="name" placeholder="姓名" aria-label="姓名" hidden>
             <input id="username" autocomplete="username" placeholder="账号" aria-label="账号">
             <input id="password" type="password" autocomplete="current-password" placeholder="密码" aria-label="密码">
             <input id="confirm-password" type="password" autocomplete="new-password" placeholder="确认密码" aria-label="确认密码" hidden>
+            <input id="invite-code" autocomplete="one-time-code" placeholder="Private Beta 邀请码" aria-label="Private Beta 邀请码" hidden>
           </div>
           <div class="auth-actions">
             <button id="login-btn" class="auth-button" type="button">登录</button>
@@ -50,10 +51,25 @@
         </div>
         <div id="user-panel" class="user-summary" hidden>
           <div><strong id="current-user">-</strong><span id="current-role" class="auth-message">-</span></div>
-          <button id="logout-btn" class="auth-button" type="button">退出</button>
+          <div class="account-actions">
+            <button id="delete-account-btn" class="auth-button auth-danger" type="button">删除账号数据</button>
+            <button id="logout-btn" class="auth-button" type="button">退出</button>
+          </div>
         </div>
       </aside>
     </header>
+
+    <section id="privacy-notice" class="beta-notice" aria-labelledby="privacy-title">
+      <div>
+        <strong id="privacy-title">Private Beta 数据提示</strong>
+        <p>请优先上传去标识化简历，不要包含身份证号、家庭住址或他人的保密资料。服务仍处于邀请测试阶段。</p>
+        <details class="privacy-details">
+          <summary>查看隐私与保留说明</summary>
+          <p>简历与 JD 仅用于你主动发起的分析和导出；正文不进入活动预览日志。删除账号会清理账号、申请、版本、建议和导出对象，且无法撤销。</p>
+        </details>
+      </div>
+      <span id="retention-summary">导出文件默认保留 7 天；可随时删除申请、简历、导出或账号。</span>
+    </section>
 
     <div class="workspace-shell">
       <nav id="tab-nav" aria-label="功能导航">

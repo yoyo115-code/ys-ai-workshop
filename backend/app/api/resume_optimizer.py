@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.api.dependencies import require_user
 from app.models.domain import PublicUser
@@ -155,3 +155,16 @@ def restore_resume_version(
     return request.app.state.resume_optimizer_service.restore_version(
         user, version_id
     )
+
+
+@router.delete(
+    "/career/resumes/{resume_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_resume(
+    resume_id: int,
+    request: Request,
+    user: PublicUser = Depends(require_user),
+) -> Response:
+    request.app.state.privacy_service.delete_resume(user, resume_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

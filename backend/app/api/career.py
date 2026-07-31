@@ -106,5 +106,5 @@ def delete_career_application(
     request: Request,
     user: PublicUser = Depends(require_user),
 ) -> Response:
-    request.app.state.career_match_service.delete_application(user, application_id)
+    request.app.state.privacy_service.delete_application(user, application_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

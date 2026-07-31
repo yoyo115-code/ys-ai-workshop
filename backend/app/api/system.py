@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response, status
 
 
 router = APIRouter(tags=["system"])
@@ -6,7 +6,43 @@ router = APIRouter(tags=["system"])
 
 @router.get("/health")
 def health(request: Request) -> dict[str, str]:
+    settings = request.app.state.settings
+    if settings.is_production:
+        database_label = "postgresql"
+    else:
+        path = request.app.state.database.sqlite_path
+        database_label = path.name if path is not None else "sqlite"
+    return {"status": "ok", "database": database_label}
+
+
+@router.get("/health/live")
+def liveness() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@router.get("/health/ready")
+def readiness(request: Request, response: Response) -> dict[str, object]:
+    database_ready = request.app.state.database.ping()
+    storage_ready = request.app.state.storage_provider.healthcheck()
+    ready = database_ready and storage_ready
+    if not ready:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return {
-        "status": "ok",
-        "database": request.app.state.settings.database_path.name,
+        "status": "ready" if ready else "not_ready",
+        "checks": {
+            "database": "ok" if database_ready else "unavailable",
+            "storage": "ok" if storage_ready else "unavailable",
+        },
+    }
+
+
+@router.get("/config/public")
+def public_configuration(request: Request) -> dict[str, object]:
+    settings = request.app.state.settings
+    return {
+        "environment": settings.app_env,
+        "private_beta": settings.is_production,
+        "registration_mode": settings.registration_mode,
+        "export_retention_days": settings.export_retention_days,
+        "privacy_document": "#privacy-notice",
     }

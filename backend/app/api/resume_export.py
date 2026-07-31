@@ -1,5 +1,7 @@
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, Query, Request, Response, status
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 
 from app.api.dependencies import require_user
 from app.models.domain import PublicUser
@@ -68,14 +70,25 @@ def download_resume_export(
     export_id: int,
     request: Request,
     user: PublicUser = Depends(require_user),
-) -> FileResponse:
-    path, row = request.app.state.resume_export_service.download(user, export_id)
+) -> Response:
+    content, url, row = request.app.state.resume_export_service.download(user, export_id)
     media_type = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         if row["format"] == "docx"
         else "application/pdf"
     )
-    return FileResponse(path=path, media_type=media_type, filename=row["filename"])
+    if url:
+        return RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    ascii_name = row["filename"].encode("ascii", "ignore").decode() or f"resume.{row['format']}"
+    disposition = (
+        f'attachment; filename="{ascii_name}"; '
+        f"filename*=UTF-8''{quote(row['filename'])}"
+    )
+    return Response(
+        content=content or b"",
+        media_type=media_type,
+        headers={"Content-Disposition": disposition},
+    )
 
 
 @router.delete(
