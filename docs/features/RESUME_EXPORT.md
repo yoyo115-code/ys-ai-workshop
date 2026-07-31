@@ -1,6 +1,6 @@
 # Resume Export & Delivery
 
-状态：Phase 4 已实现，v0.4.0 待发布。
+状态：Completed in v0.4.0。
 
 ## 用户问题
 

@@ -34,7 +34,7 @@
 
 ## v0.4 — Resume Export & Delivery
 
-状态：已实现，v0.4.0 待发布
+状态：Completed
 
 - 从确认的 ResumeVersion 生成结构化预览。
 - `professional` 与 `minimal_ats` 两个稳定模板。
@@ -46,12 +46,19 @@
 
 设计以 [Resume Export 规划](features/RESUME_EXPORT.md) 和 [ADR-004](decisions/ADR-004-resume-document-rendering.md) 为准。
 
-## Later — Application package
+## Next — Production Beta & User Validation
 
-状态：未开始
+状态：Next
 
-- Cover Letter。
-- 面试准备与 STAR 框架。
-- PostgreSQL、异步任务和浏览器测试 CI 集成。
+- 小规模真实用户验证和反馈闭环。
+- 部署前安全加固、隐私保留周期和运行监控。
+- 对象存储抽象、异步导出与浏览器/文档 CI 矩阵。
 
-分享链接、OCR、新后台和新 AI Labs 当前不在 Phase 4 范围内。
+## Planned — Cover Letter / Interview Preparation
+
+状态：Planned
+
+- 基于确认简历与 JD 生成可审阅 Cover Letter。
+- 生成岗位问题、简历追问和 STAR 回答框架。
+
+分享链接、OCR、新后台和新 AI Labs 当前没有开始。
