@@ -17,7 +17,7 @@ All notable changes to Y's AI Workshop are documented in this file.
 
 ### Testing
 
-- 122 discovered backend tests: 121 pass locally and one PostgreSQL integration test runs when a PostgreSQL service is available.
+- 126 discovered backend tests: 125 pass locally and one PostgreSQL integration test runs when a PostgreSQL service is available.
 - SQLite and PostgreSQL-offline migration validation.
 - Browser acceptance for Private Beta UI, assets, console and 390px responsive layout.
 

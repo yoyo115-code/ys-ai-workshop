@@ -2,8 +2,10 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from threading import Barrier
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -22,6 +24,7 @@ from app.core.security import (  # noqa: E402
 )
 from app.main import create_app  # noqa: E402
 from app.repositories.database import CompatConnection  # noqa: E402
+from app.repositories.workshop import InviteCodeError  # noqa: E402
 from app.services.storage import (  # noqa: E402
     LocalStorageProvider,
     S3StorageProvider,
@@ -188,7 +191,10 @@ class PrivateBetaTests(unittest.TestCase):
     def test_readiness_checks_database_and_storage(self) -> None:
         response = self.client.get("/health/ready")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["checks"], {"database": "ok", "storage": "ok"})
+        self.assertEqual(
+            response.json()["checks"],
+            {"configuration": "ok", "database": "ok", "storage": "ok"},
+        )
 
     def test_readiness_fails_without_leaking_details(self) -> None:
         with patch.object(self.client.app.state.storage_provider, "healthcheck", return_value=False):
@@ -330,6 +336,16 @@ class PrivateBetaTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_invite_registration_rejects_disabled_code(self) -> None:
+        client, code, path = self.invite_client()
+        with sqlite3.connect(path) as connection:
+            connection.execute("UPDATE invite_codes SET is_active = 0")
+        response = client.post(
+            "/auth/register",
+            json={"username": "invite_user", "password": self.password, "display_name": "Invite", "invite_code": code},
+        )
+        self.assertEqual(response.status_code, 403)
+
     def test_invite_registration_success_and_limit(self) -> None:
         client, code, _ = self.invite_client(max_uses=1)
         first = client.post(
@@ -359,9 +375,41 @@ class PrivateBetaTests(unittest.TestCase):
         self.assertNotEqual(stored_hash, code)
         self.assertEqual(len(stored_hash), 64)
 
+    def test_concurrent_invite_use_never_exceeds_limit(self) -> None:
+        client, code, _ = self.invite_client(max_uses=1)
+        repository = client.app.state.repository
+        invite_hash = hash_invite_code(code, "invite-test-secret")
+        barrier = Barrier(2)
+
+        def create(username: str) -> str:
+            salt = new_password_salt()
+            barrier.wait()
+            try:
+                repository.create_user_with_invite(
+                    username,
+                    hash_password(self.password, salt),
+                    salt,
+                    username,
+                    datetime.now(timezone.utc).isoformat(),
+                    invite_hash,
+                )
+                return "created"
+            except InviteCodeError:
+                return "rejected"
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(create, ("parallel_one", "parallel_two")))
+        self.assertEqual(sorted(results), ["created", "rejected"])
+
     def test_invite_cli_defaults(self) -> None:
         args = build_parser().parse_args([])
         self.assertEqual((args.max_uses, args.expires_in_days), (1, 14))
+
+    def test_ordinary_user_is_not_accepted_as_invite_cli_admin(self) -> None:
+        self.register()
+        self.assertIsNone(
+            self.client.app.state.repository.find_active_admin("beta_user")
+        )
 
     def test_export_has_configured_expiration(self) -> None:
         token = self.register()["token"]
@@ -406,6 +454,23 @@ class PrivateBetaTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 204)
         self.assertEqual(list(self.export_dir.glob("*")), [])
+
+    def test_storage_delete_failure_preserves_application_for_retry(self) -> None:
+        token = self.register()["token"]
+        application, workspace = self.workspace(token)
+        self.export(token, workspace["current_version"]["id"])
+        storage = self.client.app.state.storage_provider
+        with patch.object(storage, "delete", side_effect=RuntimeError("synthetic failure")):
+            response = self.client.delete(
+                f"/career/applications/{application['id']}", headers=self.headers(token)
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            self.client.get(
+                f"/career/applications/{application['id']}", headers=self.headers(token)
+            ).status_code,
+            200,
+        )
 
     def test_delete_resume_removes_versions_and_export(self) -> None:
         token = self.register()["token"]

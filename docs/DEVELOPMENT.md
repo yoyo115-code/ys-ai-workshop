@@ -11,7 +11,7 @@ cp .env.example .env
 
 从仓库根目录维护 `.env`。禁止提交真实密钥、数据库、Session 或活动日志。
 
-Resume Export 默认把运行文件写到 `backend/generated/`，可用 `RESUME_EXPORT_DIR` 切换到受控私有目录。不要把用户导出的 DOCX/PDF 放入源码或 Git。local 默认 `STORAGE_BACKEND=local`、`REGISTRATION_MODE=open`；不要在开发环境伪装 production 配置。
+Resume Export 默认把运行文件写到 `backend/generated/`，可用 `RESUME_EXPORT_DIR` 切换到受控私有目录。不要把用户导出的 DOCX/PDF 放入源码或 Git。local 默认 `STORAGE_PROVIDER=local`、`REGISTRATION_MODE=open`；不要在开发环境伪装 production 配置。
 
 ## 数据库模式
 

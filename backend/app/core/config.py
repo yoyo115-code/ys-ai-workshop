@@ -77,9 +77,9 @@ class Settings:
         if not self.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
             missing.append("DATABASE_URL (PostgreSQL required)")
         if self.storage_backend != "s3":
-            missing.append("STORAGE_BACKEND (s3 required)")
+            missing.append("STORAGE_PROVIDER (s3 required)")
         for name, value in (
-            ("S3_BUCKET", self.s3_bucket),
+            ("S3_BUCKET_NAME", self.s3_bucket),
             ("S3_REGION", self.s3_region),
             ("S3_ACCESS_KEY_ID", self.s3_access_key_id),
             ("S3_SECRET_ACCESS_KEY", self.s3_secret_access_key),
@@ -99,7 +99,7 @@ class Settings:
         if self.app_env not in {"development", "test", "production"}:
             raise RuntimeError("APP_ENV must be development, test, or production")
         if self.storage_backend not in {"local", "s3"}:
-            raise RuntimeError("STORAGE_BACKEND must be local or s3")
+            raise RuntimeError("STORAGE_PROVIDER must be local or s3")
         if self.registration_mode not in {"open", "invite_only", "disabled"}:
             raise RuntimeError(
                 "REGISTRATION_MODE must be open, invite_only, or disabled"
@@ -141,13 +141,19 @@ def get_settings() -> Settings:
         llm_max_retries=_positive_int(os.getenv("LLM_MAX_RETRIES", "2"), 2),
         resume_export_dir=export_dir.resolve(),
         storage_backend=(
-            os.getenv("STORAGE_BACKEND", "s3" if app_env == "production" else "local")
+            os.getenv(
+                "STORAGE_PROVIDER",
+                os.getenv(
+                    "STORAGE_BACKEND",
+                    "s3" if app_env == "production" else "local",
+                ),
+            )
             .strip()
             .lower()
             or ("s3" if app_env == "production" else "local")
         ),
         s3_endpoint_url=os.getenv("S3_ENDPOINT_URL", "").strip(),
-        s3_bucket=os.getenv("S3_BUCKET", "").strip(),
+        s3_bucket=os.getenv("S3_BUCKET_NAME", os.getenv("S3_BUCKET", "")).strip(),
         s3_region=os.getenv("S3_REGION", "").strip(),
         s3_access_key_id=os.getenv("S3_ACCESS_KEY_ID", "").strip(),
         s3_secret_access_key=os.getenv("S3_SECRET_ACCESS_KEY", ""),

@@ -22,14 +22,18 @@ def liveness() -> dict[str, str]:
 
 @router.get("/health/ready")
 def readiness(request: Request, response: Response) -> dict[str, object]:
+    configuration_ready = not bool(
+        request.app.state.settings.production_configuration_errors()
+    )
     database_ready = request.app.state.database.ping()
     storage_ready = request.app.state.storage_provider.healthcheck()
-    ready = database_ready and storage_ready
+    ready = configuration_ready and database_ready and storage_ready
     if not ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return {
         "status": "ready" if ready else "not_ready",
         "checks": {
+            "configuration": "ok" if configuration_ready else "invalid",
             "database": "ok" if database_ready else "unavailable",
             "storage": "ok" if storage_ready else "unavailable",
         },

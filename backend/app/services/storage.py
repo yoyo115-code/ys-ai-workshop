@@ -99,7 +99,7 @@ class LocalStorageProvider(StorageProvider):
         return candidate
 
 
-class S3StorageProvider(StorageProvider):
+class S3CompatibleStorageProvider(StorageProvider):
     def __init__(
         self,
         settings: Settings,
@@ -161,5 +161,9 @@ class S3StorageProvider(StorageProvider):
 
 def build_storage_provider(settings: Settings) -> StorageProvider:
     if settings.storage_backend == "s3":
-        return S3StorageProvider(settings)
+        return S3CompatibleStorageProvider(settings)
     return LocalStorageProvider(settings.resume_export_dir)
+
+
+# Backward-compatible internal name used by the Phase 5A test fixtures.
+S3StorageProvider = S3CompatibleStorageProvider

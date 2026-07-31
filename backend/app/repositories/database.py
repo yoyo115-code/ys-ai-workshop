@@ -79,6 +79,8 @@ class CompatConnection:
         self, statement: str, parameters: Sequence[Any] | None = None
     ) -> CompatResult:
         if statement.strip().upper() == "BEGIN IMMEDIATE":
+            if self._dialect_name == "sqlite":
+                return CompatResult(self._connection.exec_driver_sql("BEGIN IMMEDIATE"))
             return CompatResult(self._connection.execute(text("SELECT 1 WHERE 0 = 1")))
 
         sql, bindings = self._bind(statement, parameters or ())

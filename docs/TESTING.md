@@ -9,7 +9,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend \
 python3 -m unittest discover -s tests/backend -v
 ```
 
-当前发现 122 项：本机 121 通过，1 项需要 PostgreSQL service 的 integration test 明确 skip。GitHub Actions 提供 PostgreSQL 并执行该用例。
+当前发现 126 项：本机 125 通过，1 项需要 PostgreSQL service 的 integration test 明确 skip。GitHub Actions 提供 PostgreSQL 并执行该用例。
 
 覆盖范围：
 

@@ -79,7 +79,7 @@ uvicorn app.main:app --reload
 ```dotenv
 APP_ENV=development
 DATABASE_URL=sqlite:///./platform.db
-STORAGE_BACKEND=local
+STORAGE_PROVIDER=local
 REGISTRATION_MODE=open
 EXPORT_RETENTION_DAYS=7
 ```
@@ -96,8 +96,8 @@ production 必须使用 PostgreSQL、S3-compatible 私有存储和邀请制注�
 | --- | --- |
 | `APP_ENV` | `development`、`test` 或 `production` |
 | `DATABASE_URL` | 本地 SQLite 或生产 PostgreSQL URL |
-| `STORAGE_BACKEND` | `local` 或 `s3` |
-| `S3_*` | 私有 bucket、区域、endpoint 和访问凭据 |
+| `STORAGE_PROVIDER` | `local` 或 `s3`；兼容旧名 `STORAGE_BACKEND` |
+| `S3_BUCKET_NAME` / `S3_*` | 私有 bucket、区域、endpoint 和访问凭据；bucket 兼容旧名 `S3_BUCKET` |
 | `DEEPSEEK_API_KEY` / `ANTHROPIC_API_KEY` | AI Provider 凭据 |
 | `INITIAL_ADMIN_*` | 可选的一次性初始管理员；必须成对配置，无默认密码 |
 | `REGISTRATION_MODE` | `open`、`invite_only` 或 `disabled` |
@@ -165,7 +165,7 @@ node --check frontend/assets/js/config.js
 node --check frontend/assets/js/app.js
 ```
 
-当前后端发现 122 项：本地可执行 121 项并跳过 1 项需要真实 PostgreSQL service 的 integration test；GitHub Actions 提供 PostgreSQL service 并执行该用例。测试使用合成数据和 mock LLM，不调用真实模型。
+当前后端发现 126 项：本地可执行 125 项并跳过 1 项需要真实 PostgreSQL service 的 integration test；GitHub Actions 提供 PostgreSQL service 并执行该用例。测试使用合成数据和 mock LLM，不调用真实模型。
 
 浏览器测试覆盖 Private Beta 标识、邀请码表单、隐私/保留提示、核心导航、静态资源、控制台错误和 390px 响应式布局。运行方式见 [Testing](docs/TESTING.md)。
 
