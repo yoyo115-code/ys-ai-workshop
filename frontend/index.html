@@ -289,7 +289,7 @@
                   <div class="empty-state">暂无版本记录。</div>
                 </div>
                 <div id="optimizer-diff" class="optimizer-diff" hidden></div>
-                <p class="optimizer-export-note">当前保存和对比的是结构化文本版本；PDF/DOCX 版式保真导出尚未实现。</p>
+                <p class="optimizer-export-note">选择任意文本版本后可打开 Export 工作区，检查结构化内容并生成 DOCX/PDF。</p>
               </section>
             </div>
 
@@ -300,6 +300,7 @@
                   <div class="suggestion-toolbar">
                     <button id="optimizer-undo-btn" class="secondary-btn" type="button" disabled>Undo 最近操作</button>
                     <button id="optimizer-create-version-btn" class="action-btn" type="button">生成新版本</button>
+                    <button id="optimizer-export-btn" class="secondary-btn" type="button">Export</button>
                   </div>
                 </div>
                 <div id="optimizer-filters" class="optimizer-filters" aria-label="建议筛选">
@@ -315,6 +316,86 @@
               </section>
             </div>
           </div>
+
+          <section id="resume-export-workspace" class="optimizer-card resume-export-workspace" hidden>
+            <div class="optimizer-card-heading export-workspace-heading">
+              <div><span class="result-eyebrow">Resume delivery</span><h3>DOCX / PDF Export</h3></div>
+              <button id="export-close-btn" class="secondary-btn" type="button">关闭</button>
+            </div>
+
+            <div id="export-message" class="career-message placeholder" role="status">选择 ResumeVersion 后打开导出预览。</div>
+
+            <div class="export-meta-grid">
+              <div class="metric"><span>ResumeVersion</span><strong id="export-version-label">-</strong></div>
+              <div class="metric"><span>公司 / 岗位</span><strong id="export-job-label">-</strong></div>
+              <div class="metric"><span>结构化状态</span><strong id="export-parse-label">-</strong></div>
+            </div>
+
+            <div class="export-controls">
+              <label>Template
+                <select id="export-template-select">
+                  <option value="professional">Professional</option>
+                  <option value="minimal_ats">Minimal ATS</option>
+                </select>
+              </label>
+              <label>Format
+                <select id="export-format-select">
+                  <option value="docx">DOCX</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </label>
+              <label>Paper
+                <select id="export-paper-select">
+                  <option value="a4">A4</option>
+                  <option value="letter">Letter</option>
+                </select>
+              </label>
+              <label>Language
+                <select id="export-language-select">
+                  <option value="bilingual">中英双语标题</option>
+                  <option value="zh">中文标题</option>
+                  <option value="en">English headings</option>
+                </select>
+              </label>
+              <button id="export-generate-btn" class="action-btn" type="button">生成文件</button>
+              <button id="export-retry-btn" class="secondary-btn" type="button" hidden>Retry</button>
+            </div>
+
+            <div class="export-layout">
+              <section id="resume-export-editor" class="export-editor" aria-label="结构化简历编辑器">
+                <div class="export-section-heading"><div><span class="result-eyebrow">Confirmed content</span><h4>结构化内容</h4></div><small>编辑只影响本次导出，不覆盖 ResumeVersion</small></div>
+                <div class="export-basics-grid">
+                  <label>姓名<input id="export-name" maxlength="200"></label>
+                  <label>Email<input id="export-email" maxlength="320"></label>
+                  <label>电话<input id="export-phone" maxlength="80"></label>
+                  <label>地点<input id="export-location" maxlength="240"></label>
+                </div>
+                <label class="export-field">Links（每行一个）<textarea id="export-links"></textarea></label>
+                <label class="export-field">Summary<textarea id="export-summary"></textarea></label>
+
+                <div class="export-entry-section"><div class="export-entry-heading"><h5>Experience</h5><button type="button" class="secondary-btn" onclick="addResumeExportEntry('experience')">添加</button></div><div id="export-experience-editor"></div></div>
+                <div class="export-entry-section"><div class="export-entry-heading"><h5>Projects</h5><button type="button" class="secondary-btn" onclick="addResumeExportEntry('projects')">添加</button></div><div id="export-projects-editor"></div></div>
+                <div class="export-entry-section"><div class="export-entry-heading"><h5>Education</h5><button type="button" class="secondary-btn" onclick="addResumeExportEntry('education')">添加</button></div><div id="export-education-editor"></div></div>
+
+                <label class="export-field">Skills（每行一个）<textarea id="export-skills"></textarea></label>
+                <label class="export-field">Certifications（每行一个）<textarea id="export-certifications"></textarea></label>
+                <label class="export-field">Awards（每行一个）<textarea id="export-awards"></textarea></label>
+                <label class="export-field">Additional information（每行一个）<textarea id="export-additional"></textarea></label>
+              </section>
+
+              <section class="export-preview-shell" aria-label="简历预览">
+                <div class="export-section-heading"><div><span class="result-eyebrow">Preview</span><h4>页面预览</h4></div><small id="export-page-hint">A4 · 实际分页以下载文件为准</small></div>
+                <article id="export-preview" class="resume-document-preview professional">
+                  <div class="empty-state">Loading preview…</div>
+                </article>
+              </section>
+            </div>
+
+            <section class="export-history-section">
+              <div class="export-section-heading"><div><span class="result-eyebrow">Delivery history</span><h4>最近导出</h4></div><button id="export-refresh-btn" class="secondary-btn" type="button">刷新</button></div>
+              <div id="export-history" class="export-history-list"><div class="empty-state">Empty：尚无导出记录。</div></div>
+            </section>
+          </section>
         </section>
 
         <section id="panel-resume" class="panel" aria-labelledby="resume-title">

@@ -9,6 +9,10 @@ let optimizerVersions = [];
 let optimizerFilter = "all";
 let optimizerDirty = false;
 let lastOptimizerSuggestionId = null;
+let resumeExportVersionId = null;
+let resumeExportData = null;
+let resumeExportHistory = [];
+let resumeExportDirty = false;
 
 function apiUrl(path) {
   return `${API_CONFIG.apiBaseUrl}${path}`;
@@ -39,10 +43,11 @@ function switchTab(name) {
     return;
   }
   const optimizerIsActive = document.getElementById("panel-optimizer")?.classList.contains("active");
-  if (optimizerIsActive && name !== "optimizer" && optimizerDirty) {
-    const confirmed = window.confirm("有尚未保存的建议编辑，确定离开 Resume Optimizer？");
+  if (optimizerIsActive && name !== "optimizer" && (optimizerDirty || resumeExportDirty)) {
+    const confirmed = window.confirm("有尚未生成文件的编辑，确定离开 Resume Optimizer？");
     if (!confirmed) return;
     optimizerDirty = false;
+    resumeExportDirty = false;
   }
 
   document.querySelectorAll(".tab-btn").forEach((button) => {
@@ -1073,10 +1078,316 @@ async function restoreOptimizerVersion(versionId) {
   }
 }
 
+function resumeExportPath(exportId = "", suffix = "") {
+  return `${API_CONFIG.endpoints.optimizer.exports}${exportId ? `/${exportId}` : ""}${suffix}`;
+}
+
+function setResumeExportMessage(message, state = "placeholder", retry = false) {
+  const target = document.getElementById("export-message");
+  target.className = `career-message ${state}`;
+  target.textContent = message;
+  document.getElementById("export-retry-btn").hidden = !retry;
+}
+
+async function openResumeExport() {
+  if (!currentUser || !optimizerWorkspace) {
+    setOptimizerMessage("请先登录并打开 Resume Optimizer 工作区。", "error");
+    return;
+  }
+  const versionId = Number(
+    document.getElementById("optimizer-version-select").value
+      || optimizerWorkspace.current_version.id
+  );
+  if (!versionId) {
+    setOptimizerMessage("请选择需要导出的 ResumeVersion。", "error");
+    return;
+  }
+  const workspace = document.getElementById("resume-export-workspace");
+  workspace.hidden = false;
+  workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+  resumeExportVersionId = versionId;
+  resumeExportData = null;
+  resumeExportDirty = false;
+  setResumeExportMessage("正在结构化 ResumeVersion…", "loading");
+  document.getElementById("export-preview").innerHTML = '<div class="empty-state">Loading preview…</div>';
+  try {
+    const response = await fetch(
+      apiUrl(optimizerVersionPath(versionId, "/preview")),
+      { headers: authHeaders() }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    resumeExportData = payload.resume;
+    document.getElementById("export-version-label").textContent = `v${payload.version_number}`;
+    document.getElementById("export-job-label").textContent = `${payload.company_name || "未填写公司"} / ${payload.job_title || "未填写岗位"}`;
+    document.getElementById("export-parse-label").textContent = payload.parse_status === "structured" ? "Structured" : "Needs review";
+    renderResumeExportEditor();
+    renderResumeExportPreview();
+    await loadResumeExportHistory();
+    const warning = (payload.parse_warnings || []).join(" ");
+    setResumeExportMessage(
+      warning || "结构化预览已就绪。请核对内容后生成文件。",
+      warning ? "error" : "success"
+    );
+  } catch (error) {
+    setResumeExportMessage(error.message || "结构化预览失败。", "error", true);
+    document.getElementById("export-preview").innerHTML = '<div class="empty-state error-state">Preview unavailable，请检查 ResumeVersion 文本。</div>';
+  }
+}
+
+function renderResumeExportEditor() {
+  if (!resumeExportData) return;
+  const basics = resumeExportData.basics || {};
+  document.getElementById("export-name").value = basics.name || "";
+  document.getElementById("export-email").value = basics.email || "";
+  document.getElementById("export-phone").value = basics.phone || "";
+  document.getElementById("export-location").value = basics.location || "";
+  document.getElementById("export-links").value = (basics.links || []).join("\n");
+  document.getElementById("export-summary").value = basics.summary || "";
+  ["experience", "projects", "education"].forEach(key => renderResumeExportEntries(key));
+  document.getElementById("export-skills").value = (resumeExportData.skills || []).join("\n");
+  document.getElementById("export-certifications").value = (resumeExportData.certifications || []).join("\n");
+  document.getElementById("export-awards").value = (resumeExportData.awards || []).join("\n");
+  document.getElementById("export-additional").value = (resumeExportData.additional_information || []).join("\n");
+}
+
+function renderResumeExportEntries(key) {
+  const container = document.getElementById(`export-${key}-editor`);
+  const entries = resumeExportData?.[key] || [];
+  container.innerHTML = entries.map((entry, index) => `
+    <article class="export-entry-card" data-export-entry="${escapeHtml(key)}" data-entry-index="${index}">
+      <div class="export-entry-card-heading"><strong>${escapeHtml(key)} ${index + 1}</strong><button type="button" class="secondary-btn" onclick="removeResumeExportEntry('${escapeHtml(key)}', ${index})">删除</button></div>
+      <div class="export-entry-grid">
+        <label>Title<input data-entry-field="title" value="${escapeHtml(entry.title || "")}"></label>
+        <label>Organization<input data-entry-field="organization" value="${escapeHtml(entry.organization || "")}"></label>
+        <label>Location<input data-entry-field="location" value="${escapeHtml(entry.location || "")}"></label>
+        <label>Start date<input data-entry-field="start_date" value="${escapeHtml(entry.start_date || "")}"></label>
+        <label>End date<input data-entry-field="end_date" value="${escapeHtml(entry.end_date || "")}"></label>
+      </div>
+      <label class="export-field">Bullet points（每行一个）<textarea data-entry-field="bullet_points">${escapeHtml((entry.bullet_points || []).join("\n"))}</textarea></label>
+    </article>
+  `).join("") || '<div class="empty-state compact">Empty：此章节不会渲染。</div>';
+}
+
+function addResumeExportEntry(key) {
+  if (!resumeExportData || !["experience", "projects", "education"].includes(key)) return;
+  syncResumeExportDataFromEditor();
+  resumeExportData[key].push({ organization: "", title: "", location: "", start_date: "", end_date: "", bullet_points: [] });
+  renderResumeExportEntries(key);
+  resumeExportDirty = true;
+  renderResumeExportPreview();
+}
+
+function removeResumeExportEntry(key, index) {
+  if (!resumeExportData || !Array.isArray(resumeExportData[key])) return;
+  syncResumeExportDataFromEditor();
+  resumeExportData[key].splice(index, 1);
+  renderResumeExportEntries(key);
+  resumeExportDirty = true;
+  renderResumeExportPreview();
+}
+
+function exportLines(id) {
+  return document.getElementById(id).value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+}
+
+function readResumeExportEntries(key) {
+  return Array.from(document.querySelectorAll(`#export-${key}-editor .export-entry-card`)).map(card => ({
+    organization: card.querySelector('[data-entry-field="organization"]').value.trim(),
+    title: card.querySelector('[data-entry-field="title"]').value.trim(),
+    location: card.querySelector('[data-entry-field="location"]').value.trim(),
+    start_date: card.querySelector('[data-entry-field="start_date"]').value.trim(),
+    end_date: card.querySelector('[data-entry-field="end_date"]').value.trim(),
+    bullet_points: card.querySelector('[data-entry-field="bullet_points"]').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean)
+  }));
+}
+
+function syncResumeExportDataFromEditor() {
+  if (!resumeExportData) return;
+  resumeExportData.basics = {
+    name: document.getElementById("export-name").value.trim(),
+    email: document.getElementById("export-email").value.trim(),
+    phone: document.getElementById("export-phone").value.trim(),
+    location: document.getElementById("export-location").value.trim(),
+    links: exportLines("export-links"),
+    summary: document.getElementById("export-summary").value.trim()
+  };
+  resumeExportData.experience = readResumeExportEntries("experience");
+  resumeExportData.projects = readResumeExportEntries("projects");
+  resumeExportData.education = readResumeExportEntries("education");
+  resumeExportData.skills = exportLines("export-skills");
+  resumeExportData.certifications = exportLines("export-certifications");
+  resumeExportData.awards = exportLines("export-awards");
+  resumeExportData.additional_information = exportLines("export-additional");
+}
+
+function resumeExportSectionLabel(key, language) {
+  const labels = {
+    summary: ["个人简介", "SUMMARY"], experience: ["工作经历", "EXPERIENCE"],
+    projects: ["项目经历", "PROJECTS"], education: ["教育经历", "EDUCATION"],
+    skills: ["技能", "SKILLS"], certifications: ["证书", "CERTIFICATIONS"],
+    awards: ["荣誉奖项", "AWARDS"], additional_information: ["补充信息", "ADDITIONAL INFORMATION"]
+  };
+  const [zh, en] = labels[key];
+  return language === "zh" ? zh : (language === "en" ? en : `${zh} / ${en}`);
+}
+
+function renderResumeExportPreview() {
+  if (!resumeExportData) return;
+  const template = document.getElementById("export-template-select").value;
+  const language = document.getElementById("export-language-select").value;
+  const paper = document.getElementById("export-paper-select").value.toUpperCase();
+  const preview = document.getElementById("export-preview");
+  preview.className = `resume-document-preview ${template}`;
+  document.getElementById("export-page-hint").textContent = `${paper} · 实际分页以下载文件为准`;
+  const basics = resumeExportData.basics || {};
+  const contacts = [basics.email, basics.phone, basics.location, ...(basics.links || [])].filter(Boolean);
+  const section = (key, content) => content ? `<section><h5>${escapeHtml(resumeExportSectionLabel(key, language))}</h5>${content}</section>` : "";
+  const entries = key => (resumeExportData[key] || []).filter(item => item.title || item.organization || item.location || item.start_date || item.end_date || item.bullet_points?.length).map(item => {
+    const title = [item.title, item.organization].filter(Boolean).join(" — ");
+    const dates = [item.start_date, item.end_date].filter(Boolean).join(" - ");
+    const meta = [item.location, dates].filter(Boolean).join(" | ");
+    return `<article class="document-entry"><div><strong>${escapeHtml(title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${item.bullet_points?.length ? `<ul>${item.bullet_points.map(point => `<li>${escapeHtml(point)}</li>`).join("")}</ul>` : ""}</article>`;
+  }).join("");
+  const list = values => values?.length ? `<ul>${values.map(value => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : "";
+  preview.innerHTML = `
+    <header><h4>${escapeHtml(basics.name || "Name required")}</h4>${contacts.length ? `<p>${contacts.map(escapeHtml).join(" | ")}</p>` : ""}</header>
+    ${section("summary", basics.summary ? `<p>${escapeHtml(basics.summary).replaceAll("\n", "<br>")}</p>` : "")}
+    ${section("experience", entries("experience"))}
+    ${section("projects", entries("projects"))}
+    ${section("education", entries("education"))}
+    ${section("skills", resumeExportData.skills?.length ? `<p>${resumeExportData.skills.map(escapeHtml).join(" • ")}</p>` : "")}
+    ${section("certifications", list(resumeExportData.certifications))}
+    ${section("awards", list(resumeExportData.awards))}
+    ${section("additional_information", list(resumeExportData.additional_information))}
+  `;
+}
+
+async function createResumeExport() {
+  if (!resumeExportVersionId || !resumeExportData) {
+    setResumeExportMessage("请先打开结构化预览。", "error", true);
+    return;
+  }
+  syncResumeExportDataFromEditor();
+  const button = document.getElementById("export-generate-btn");
+  setButtonLoading(button, true);
+  setResumeExportMessage("Generating：正在安全生成文件…", "loading");
+  try {
+    const response = await fetch(
+      apiUrl(optimizerVersionPath(resumeExportVersionId, "/exports")),
+      {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({
+          template_key: document.getElementById("export-template-select").value,
+          format: document.getElementById("export-format-select").value,
+          paper_size: document.getElementById("export-paper-select").value,
+          language: document.getElementById("export-language-select").value,
+          resume: resumeExportData
+        })
+      }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    resumeExportDirty = false;
+    await loadResumeExportHistory();
+    setResumeExportMessage(`Ready：${payload.filename} 已生成，可从历史记录下载。`, "success");
+  } catch (error) {
+    await loadResumeExportHistory();
+    setResumeExportMessage(error.message || "导出失败，未保留不完整文件。", "error", true);
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function loadResumeExportHistory() {
+  const container = document.getElementById("export-history");
+  if (!resumeExportVersionId || !currentUser) {
+    container.innerHTML = '<div class="empty-state">Empty：尚无导出记录。</div>';
+    return;
+  }
+  container.innerHTML = '<div class="empty-state">Loading export history…</div>';
+  try {
+    const response = await fetch(
+      `${apiUrl(resumeExportPath())}?version_id=${resumeExportVersionId}`,
+      { headers: authHeaders() }
+    );
+    const payload = await getResponsePayload(response);
+    if (!response.ok) throw new Error(formatError(response, payload));
+    resumeExportHistory = payload;
+    container.innerHTML = payload.map(item => `
+      <article class="export-history-item status-${escapeHtml(item.status)}">
+        <div><strong>${escapeHtml(item.filename)}</strong><span>${escapeHtml(item.template_key)} · ${escapeHtml(item.format.toUpperCase())} · v${item.version_number}</span><small>${escapeHtml(formatTime(item.created_at))}${item.error_code ? ` · ${escapeHtml(item.error_code)}` : ""}</small></div>
+        <div class="export-history-actions">
+          <span class="export-status">${escapeHtml(item.status)}</span>
+          ${item.status === "ready" ? `<button class="secondary-btn" type="button" onclick="downloadResumeExport(${item.id})">下载</button>` : ""}
+          <button class="secondary-btn" type="button" onclick="deleteResumeExport(${item.id})">删除</button>
+        </div>
+      </article>
+    `).join("") || '<div class="empty-state">Empty：尚无导出记录。</div>';
+  } catch (error) {
+    container.innerHTML = `<div class="empty-state error-state">${escapeHtml(error.message || "导出记录加载失败")}</div>`;
+  }
+}
+
+async function downloadResumeExport(exportId) {
+  const record = resumeExportHistory.find(item => item.id === exportId);
+  try {
+    const response = await fetch(
+      apiUrl(resumeExportPath(exportId, "/download")),
+      { headers: authHeaders() }
+    );
+    if (!response.ok) {
+      const payload = await getResponsePayload(response);
+      throw new Error(formatError(response, payload));
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = record?.filename || `resume-export-${exportId}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setResumeExportMessage(`已下载 ${record?.filename || "简历文件"}。`, "success");
+  } catch (error) {
+    setResumeExportMessage(error.message || "下载失败。", "error", true);
+  }
+}
+
+async function deleteResumeExport(exportId) {
+  if (!window.confirm("删除会同时移除本地导出文件，是否继续？")) return;
+  try {
+    const response = await fetch(apiUrl(resumeExportPath(exportId)), {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+    if (!response.ok) {
+      const payload = await getResponsePayload(response);
+      throw new Error(formatError(response, payload));
+    }
+    await loadResumeExportHistory();
+    setResumeExportMessage("导出记录和对应文件已删除。", "success");
+  } catch (error) {
+    setResumeExportMessage(error.message || "删除导出失败。", "error");
+  }
+}
+
+function closeResumeExport() {
+  if (resumeExportDirty && !window.confirm("当前结构化编辑尚未生成文件，确定关闭？")) return;
+  resumeExportDirty = false;
+  document.getElementById("resume-export-workspace").hidden = true;
+}
+
 function resetOptimizerUI() {
   optimizerWorkspace = null;
   optimizerVersions = [];
   optimizerDirty = false;
+  resumeExportVersionId = null;
+  resumeExportData = null;
+  resumeExportHistory = [];
+  resumeExportDirty = false;
   lastOptimizerSuggestionId = null;
   document.getElementById("optimizer-job").textContent = "-";
   document.getElementById("optimizer-version-number").textContent = "-";
@@ -1087,6 +1398,7 @@ function resetOptimizerUI() {
   document.getElementById("optimizer-version-history").innerHTML = '<div class="empty-state">暂无版本记录。</div>';
   document.getElementById("optimizer-diff").hidden = true;
   document.getElementById("optimizer-undo-btn").disabled = true;
+  document.getElementById("resume-export-workspace").hidden = true;
 }
 
 async function refreshAdminDashboard() {
@@ -1137,10 +1449,32 @@ document.getElementById("optimizer-retry-btn").addEventListener("click", () => {
 });
 document.getElementById("optimizer-undo-btn").addEventListener("click", undoOptimizerSuggestion);
 document.getElementById("optimizer-create-version-btn").addEventListener("click", createOptimizerVersion);
+document.getElementById("optimizer-export-btn").addEventListener("click", openResumeExport);
 document.getElementById("optimizer-refresh-versions-btn").addEventListener("click", loadOptimizerVersions);
 document.getElementById("optimizer-compare-btn").addEventListener("click", compareOptimizerVersions);
 document.getElementById("optimizer-version-select").addEventListener("change", (event) => {
   if (event.target.value) viewOptimizerVersion(Number(event.target.value));
+});
+document.getElementById("export-close-btn").addEventListener("click", closeResumeExport);
+document.getElementById("export-generate-btn").addEventListener("click", createResumeExport);
+document.getElementById("export-retry-btn").addEventListener("click", createResumeExport);
+document.getElementById("export-refresh-btn").addEventListener("click", loadResumeExportHistory);
+document.getElementById("resume-export-editor").addEventListener("input", () => {
+  if (!resumeExportData) return;
+  syncResumeExportDataFromEditor();
+  resumeExportDirty = true;
+  renderResumeExportPreview();
+  setResumeExportMessage("结构化内容有未导出的编辑。", "loading");
+});
+["export-template-select", "export-paper-select", "export-language-select"].forEach(id => {
+  document.getElementById(id).addEventListener("change", () => {
+    if (!resumeExportData) return;
+    resumeExportDirty = true;
+    renderResumeExportPreview();
+  });
+});
+document.getElementById("export-format-select").addEventListener("change", () => {
+  if (resumeExportData) resumeExportDirty = true;
 });
 document.querySelectorAll("[data-optimizer-filter]").forEach(button => {
   button.addEventListener("click", () => {
@@ -1150,7 +1484,7 @@ document.querySelectorAll("[data-optimizer-filter]").forEach(button => {
   });
 });
 window.addEventListener("beforeunload", (event) => {
-  if (!optimizerDirty) return;
+  if (!optimizerDirty && !resumeExportDirty) return;
   event.preventDefault();
   event.returnValue = "";
 });

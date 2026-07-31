@@ -32,7 +32,8 @@
       optimizer: Object.freeze({
         suggestions: "/career/resume-suggestions",
         resumes: "/career/resumes",
-        versions: "/career/resume-versions"
+        versions: "/career/resume-versions",
+        exports: "/career/resume-exports"
       }),
       admin: Object.freeze({
         users: "/admin/users",

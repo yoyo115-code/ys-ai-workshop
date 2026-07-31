@@ -2,9 +2,9 @@
 
 > AI-powered career and productivity workspace
 
-Y's AI Workshop 是一个从 Group B Week 1 Nova AI 智能工作台原型继续演进的个人项目。当前版本以 Career Match 和 Resume Optimizer 为核心：用户可以保存简历与岗位 JD，获得引用原文证据的结构化匹配分析，再逐条审阅修改建议并保存可比较、可恢复的岗位定制简历版本。原有五个工具继续作为 AI Labs 保留。
+Y's AI Workshop 是一个从 Group B Week 1 Nova AI 智能工作台原型继续演进的个人项目。当前版本以 Career Match、Resume Optimizer 和 Resume Export 为核心：用户可以保存简历与岗位 JD，获得引用原文证据的结构化匹配分析，逐条审阅建议并保存不可变版本，最后从确认内容生成可下载的 DOCX/PDF。原有五个工具继续作为 AI Labs 保留。
 
-项目仍是本地优先的 MVP。当前已完成岗位匹配与文本简历优化闭环，但尚未实现 PDF/DOCX 版式保真导出、Cover Letter、面试模拟或分享协作。
+项目仍是本地优先的 MVP。当前已完成岗位匹配、版本化文本优化和两模板文档交付闭环，但不保留用户原始 PDF/DOCX 的像素级版式，也尚未实现 Cover Letter、面试模拟或分享协作。
 
 ## 当前功能
 
@@ -15,6 +15,9 @@ Y's AI Workshop 是一个从 Group B Week 1 Nova AI 智能工作台原型继续�
 - Resume Optimizer：对当前版本生成可接受、拒绝、编辑、单条重新生成和 Undo 的句子级建议。
 - 事实风险防护：确定性校验原句与双向证据，检测新数字、技术名和专有名词；高风险建议不能直接接受。
 - 版本管理：将已接受/编辑建议事务化生成不可变文本快照，支持历史、Diff 和恢复。
+- Resume Export：确定性结构化 ResumeVersion，用户可在导出前校对字段。
+- 文档交付：提供 `professional` 和 `minimal_ats` 两个模板，支持 A4/Letter、中文/英文/双语标题、DOCX/PDF 生成、历史、重复下载和删除。
+- 导出安全：文件名规范化、内部对象名隔离、路径穿越防护、原子写入、内容哈希和用户所有权校验。
 
 - AI Labs / Resume Optimizer：保留原型的单次简历片段优化接口。
 - Copywriting：根据场景生成中文文案。
@@ -63,7 +66,7 @@ ys-ai-workshop/
 - SQLite 与 Python `sqlite3`
 - OpenAI SDK 兼容方式调用 DeepSeek
 - Anthropic Python SDK 调用 Claude
-- PyPDF、标准库 DOCX XML 解析、python-multipart、python-dotenv
+- PyPDF、标准库 DOCX XML 解析、python-docx、ReportLab、python-multipart、python-dotenv
 - Python `unittest` 与 FastAPI TestClient
 
 本阶段没有引入 SQLAlchemy；Repository 层继续使用 `sqlite3`，以避免结构拆分和数据库重写同时发生。
@@ -100,6 +103,7 @@ uvicorn app.main:app --reload
 | `CORS_ORIGINS` | 逗号分隔的允许来源；同源运行可留空 |
 | `LLM_TIMEOUT_SECONDS` | 模型请求超时秒数，安全示例为 `45` |
 | `LLM_MAX_RETRIES` | Provider SDK 的有限重试次数，安全示例为 `2` |
+| `RESUME_EXPORT_DIR` | 可选的私有导出目录；默认为 `backend/generated` |
 
 真实 `.env`、数据库、Session、日志、虚拟环境和缓存均不得提交。
 
@@ -125,6 +129,15 @@ Resume Optimizer & Versioning 新增：
 - `GET /career/resume-versions/{version_id}`
 - `GET /career/resume-versions/{version_id}/compare/{other_version_id}`
 - `POST /career/resume-versions/{version_id}/restore`
+
+Resume Export & Delivery 新增：
+
+- `GET /career/resume-versions/{version_id}/preview`
+- `POST /career/resume-versions/{version_id}/exports`
+- `GET /career/resume-exports`
+- `GET /career/resume-exports/{export_id}`
+- `GET /career/resume-exports/{export_id}/download`
+- `DELETE /career/resume-exports/{export_id}`
 
 原有接口保持不变：
 
@@ -154,14 +167,14 @@ Resume Optimizer & Versioning 新增：
 
 ## 测试
 
-测试使用临时 SQLite 文件和 mock LLM Provider，不会请求真实模型。当前覆盖 58 项后端/静态交付自动化测试，包括权限隔离、PDF/DOCX、Prompt/Schema 与证据校验、建议状态机、事务回滚、版本 Diff/恢复、静态资源 MIME/路径与旧接口回归：
+测试使用临时 SQLite 文件和 mock LLM Provider，不会请求真实模型。当前覆盖 86 项后端/静态交付自动化测试，包括原有匹配与版本回归，以及 DOCX/PDF 内容、分页、中英文、两个模板、事务、文件状态、下载响应、所有权和路径安全：
 
 ```bash
 pip install -r backend/requirements-dev.txt
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
 ```
 
-`tests/browser/` 另提供 4 项可执行 Playwright 验收，浏览器依赖和二进制不进入仓库；命令见 `docs/TESTING.md`。
+`tests/browser/` 另提供 5 项可执行 Playwright 验收，并保留真实 HTTP 浏览器验收步骤；浏览器依赖和二进制不进入仓库。命令见 `docs/TESTING.md`。
 
 ## 当前限制
 
@@ -170,6 +183,9 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
 - 第一版 Career Match 固定使用 DeepSeek，不进行双模型比较。
 - 匹配依赖模型对原始要求的拆分；引用经过原文校验，但语义判断仍可能需要用户复核。
 - Resume Optimizer 目前对结构化纯文本工作，不保留原 PDF/DOCX 版式，且精确重复原句会因歧义阻止生成版本。
+- Resume Export 只渲染确认后的结构化文本，不恢复原始文件的字体、双栏、照片或像素级版式。
+- PDF 与 DOCX 内容来自同一 Schema；中文 PDF 需要运行环境具有可用的 CJK 字体，缺失时会明确失败。
+- 导出当前为同步本地文件存储；没有对象存储、自动过期清理、公开分享或多实例任务队列。
 - 新事实风险检测为保守启发式，可能误报，不替代用户核查。
 - AI Labs 的 PDF Summary 不支持 OCR，且只读取前 8 页可提取文本。
 - CSV 仅抽取有限样本，不是完整分析引擎。
@@ -179,6 +195,6 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/backend -v
 
 ## Career Studio 路线图
 
-Career Match 和可版本化 Resume Optimizer 已组成求职主流程的前两步。版式保真导出、Cover Letter、面试准备和分享能力仍是后续计划，不属于当前已实现功能。
+Career Match、可版本化 Resume Optimizer 和两模板 Resume Export 已组成本地求职主流程。原始文件版式完全还原、Cover Letter、面试准备、分享与公开部署仍是后续计划。
 
 项目来源见 `PROJECT_ORIGIN.md`，开发说明见 `docs/DEVELOPMENT.md`。

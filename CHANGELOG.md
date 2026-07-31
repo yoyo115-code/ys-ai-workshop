@@ -2,6 +2,31 @@
 
 All notable changes to Y's AI Workshop are documented in this file.
 
+## [v0.4.0] - 2026-07-31
+
+### Added
+
+- Structured Resume Schema
+- Professional and Minimal ATS templates
+- DOCX and PDF generation
+- Resume preview and export history
+- Secure download and deletion
+- Atomic file generation and path-traversal protection
+
+### Testing
+
+- 86 automated tests
+- 28 Resume Export tests
+- Browser and responsive regression
+
+### Known limitations
+
+- No original-layout preservation
+- No OCR
+- No cloud object storage
+- No public deployment
+- No automatic retention cleanup
+
 ## [v0.3.0] - 2026-07-30
 
 ### Added

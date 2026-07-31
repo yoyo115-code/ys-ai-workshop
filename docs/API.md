@@ -158,6 +158,58 @@ JSON：
 
 以目标历史内容创建新的 `restored` 快照，不删除历史或移动指针到旧行。
 
+## Resume Export & Delivery
+
+以下接口均要求 Session，并通过 ResumeVersion 反向校验当前用户。响应不返回本地绝对路径或内部 `object_key`。
+
+### `GET /career/resume-versions/{version_id}/preview`
+
+对归属当前用户的 ResumeVersion 做确定性结构化，返回：
+
+- 版本、Resume、公司和岗位元数据；
+- `source_content_hash`；
+- `parse_status`: `structured` 或 `needs_review`；
+- 可编辑的 `StructuredResume` 与解析警告。
+
+Schema 保留 `original_text`，不调用 LLM，不推断缺失事实。无可导出文本时返回 `422 structure_unavailable`。
+
+### `POST /career/resume-versions/{version_id}/exports`
+
+JSON：
+
+```json
+{
+  "template_key": "professional",
+  "format": "docx",
+  "paper_size": "a4",
+  "language": "bilingual"
+}
+```
+
+- `template_key`: `professional` 或 `minimal_ats`。
+- `format`: `docx` 或 `pdf`。
+- `paper_size`: `a4` 或 `letter`。
+- `language`: `zh`、`en` 或 `bilingual`。
+- `resume`: 可选的用户确认 Schema；未传时使用当前确定性解析结果。`original_text` 必须与源版本一致。
+
+成功返回 `201` 和 `ready` 记录。渲染失败保留 `failed` 记录并清理不完整文件；缺少渲染依赖或 CJK 字体时返回稳定错误码。
+
+### `GET /career/resume-exports?version_id={version_id}`
+
+返回当前用户最近 50 条未删除导出，可按归属当前用户的 `version_id` 过滤。
+
+### `GET /career/resume-exports/{export_id}`
+
+返回导出元数据、状态、文件名、内容哈希和可用的 `download_url`。
+
+### `GET /career/resume-exports/{export_id}/download`
+
+只允许下载当前用户的 `ready` 文件。DOCX 返回 Open XML `Content-Type`，PDF 返回 `application/pdf`；`Content-Disposition` 使用已清理的姓名_公司_岗位_版本文件名。
+
+### `DELETE /career/resume-exports/{export_id}`
+
+校验文件位于专用导出根目录后删除文件，并将记录软删除为 `deleted`。成功返回 `204`。
+
 ## Admin
 
 ### `GET /admin/users`
@@ -176,7 +228,10 @@ JSON：
 - `409`：用户名重复。
 - `409`：Career Match 正在分析，拒绝重复任务。
 - `409`：建议状态转换非法、高风险未确认，或版本无可用建议/原句冲突。
+- `409`：导出预览的 `original_text` 与源 ResumeVersion 不一致，或文件尚未就绪。
 - `422`：Career Match 输入、简历格式或文本提取无效。
+- `422`：结构化简历无可渲染内容，或文档渲染输入无效。
 - `413`：上传超过 20 MB。
 - `502`：外部模型调用失败。
 - `503`：所选 Provider 的 API Key 未配置。
+- `503`：DOCX/PDF 渲染依赖或必需的 CJK 字体不可用。

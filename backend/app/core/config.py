@@ -10,6 +10,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 PROJECT_ROOT = BACKEND_DIR.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 SCHEMA_PATH = PROJECT_ROOT / "database" / "schema.sql"
+DEFAULT_RESUME_EXPORT_DIR = BACKEND_DIR / "generated" / "resume_exports"
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -40,6 +41,7 @@ class Settings:
     session_hours: int = 12
     llm_timeout_seconds: int = 45
     llm_max_retries: int = 2
+    resume_export_dir: Path = DEFAULT_RESUME_EXPORT_DIR
 
     @property
     def database_path(self) -> Path:
@@ -56,6 +58,10 @@ class Settings:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    export_dir_value = os.getenv("RESUME_EXPORT_DIR", "").strip()
+    export_dir = Path(export_dir_value) if export_dir_value else DEFAULT_RESUME_EXPORT_DIR
+    if not export_dir.is_absolute():
+        export_dir = BACKEND_DIR / export_dir
     return Settings(
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip(),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
@@ -68,4 +74,5 @@ def get_settings() -> Settings:
             os.getenv("LLM_TIMEOUT_SECONDS", "45"), 45
         ),
         llm_max_retries=_positive_int(os.getenv("LLM_MAX_RETRIES", "2"), 2),
+        resume_export_dir=export_dir.resolve(),
     )

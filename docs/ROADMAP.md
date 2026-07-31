@@ -32,20 +32,33 @@
 
 验收以 [Resume Optimizer 规划](features/RESUME_OPTIMIZER.md) 和 [ADR-003](decisions/ADR-003-versioned-resume-model.md) 为准。
 
-## Next — Layout-preserving export
+## v0.4 — Resume Export & Delivery
 
-状态：未开始
+状态：Completed
 
-- 将结构化文本版本导出为 PDF/DOCX。
-- 保留可控的段落层级和基础版式。
-- 增加导出文件的内容、隐私和浏览器验收测试。
+- 从确认的 ResumeVersion 生成结构化预览。
+- `professional` 与 `minimal_ats` 两个稳定模板。
+- DOCX/PDF 生成、历史、下载、删除和文件安全。
+- 保留可控段落层级，不承诺还原原始文件像素级版式。
+- 增加内容一致性、隐私、路径安全和浏览器验收测试。
+- 以确定性 Schema 驱动 DOCX/PDF，不使用 LLM 补全缺失信息。
+- 导出历史、重复下载、删除、失败记录和用户数据隔离已完成。
 
-## Later — Application package
+设计以 [Resume Export 规划](features/RESUME_EXPORT.md) 和 [ADR-004](decisions/ADR-004-resume-document-rendering.md) 为准。
 
-状态：未开始
+## Next — Production Beta & User Validation
 
-- Cover Letter。
-- 面试准备与 STAR 框架。
-- PostgreSQL、异步任务和浏览器测试 CI 集成。
+状态：Next
 
-分享链接、OCR、新后台和新 AI Labs 当前不在 Phase 3 范围内。
+- 小规模真实用户验证和反馈闭环。
+- 部署前安全加固、隐私保留周期和运行监控。
+- 对象存储抽象、异步导出与浏览器/文档 CI 矩阵。
+
+## Planned — Cover Letter / Interview Preparation
+
+状态：Planned
+
+- 基于确认简历与 JD 生成可审阅 Cover Letter。
+- 生成岗位问题、简历追问和 STAR 回答框架。
+
+分享链接、OCR、新后台和新 AI Labs 当前没有开始。
