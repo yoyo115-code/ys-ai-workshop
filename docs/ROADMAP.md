@@ -46,13 +46,25 @@
 
 设计以 [Resume Export 规划](features/RESUME_EXPORT.md) 和 [ADR-004](decisions/ADR-004-resume-document-rendering.md) 为准。
 
+## v0.5 — Deployable Private Beta
+
+状态：In progress
+
+- PostgreSQL production 数据层与可重复 migration。
+- Local/S3-compatible 存储抽象、限时下载与过期清理。
+- 邀请制注册、生产配置校验和 live/ready 探针。
+- 用户数据删除、日志最小化、Docker 与 PostgreSQL CI。
+- 本阶段交付可部署能力，不自动创建云资源或处理真实用户数据。
+
+设计以 [ADR-005](decisions/ADR-005-production-beta-architecture.md)、[Deployment](DEPLOYMENT.md) 和 [Privacy](PRIVACY.md) 为准。
+
 ## Next — Production Beta & User Validation
 
 状态：Next
 
-- 小规模真实用户验证和反馈闭环。
-- 部署前安全加固、隐私保留周期和运行监控。
-- 对象存储抽象、异步导出与浏览器/文档 CI 矩阵。
+- 在人工创建的受控环境进行小规模邀请测试。
+- 完成 Provider 数据处理条款、备份窗口和告警负责人确认。
+- 收集去标识化的流程反馈和可靠性指标，不扩张功能范围。
 
 ## Planned — Cover Letter / Interview Preparation
 
