@@ -54,6 +54,21 @@ class FrontendDeliveryBrowserTests(unittest.TestCase):
               return {
                 styleSheets: document.styleSheets.length,
                 headerDisplay: getComputedStyle(document.querySelector('#header')).display,
+                headerHeight: document.querySelector('#header').getBoundingClientRect().height,
+                brandMark: (() => {
+                  const mark = document.querySelector('.brand-mark');
+                  const container = document.querySelector('.brand-logo');
+                  const markRect = mark.getBoundingClientRect();
+                  const containerRect = container.getBoundingClientRect();
+                  return {
+                    complete: mark.complete,
+                    naturalWidth: mark.naturalWidth,
+                    width: markRect.width,
+                    height: markRect.height,
+                    centerDeltaX: Math.abs((markRect.left + markRect.width / 2) - (containerRect.left + containerRect.width / 2)),
+                    centerDeltaY: Math.abs((markRect.top + markRect.height / 2) - (containerRect.top + containerRect.height / 2))
+                  };
+                })(),
                 maxSvgWidth: Math.max(...svgSizes.map((item) => item.width)),
                 maxSvgHeight: Math.max(...svgSizes.map((item) => item.height)),
                 overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
@@ -63,9 +78,89 @@ class FrontendDeliveryBrowserTests(unittest.TestCase):
         )
         self.assertGreaterEqual(result["styleSheets"], 1)
         self.assertEqual(result["headerDisplay"], "grid")
+        self.assertLess(result["headerHeight"], 480)
+        self.assertTrue(result["brandMark"]["complete"])
+        self.assertGreater(result["brandMark"]["naturalWidth"], 0)
+        self.assertGreaterEqual(result["brandMark"]["width"], 38)
+        self.assertLessEqual(result["brandMark"]["width"], 44)
+        self.assertLessEqual(result["brandMark"]["centerDeltaX"], 1)
+        self.assertLessEqual(result["brandMark"]["centerDeltaY"], 1)
         self.assertLessEqual(result["maxSvgWidth"], 64)
         self.assertLessEqual(result["maxSvgHeight"], 64)
         self.assertFalse(result["overflow"])
+
+    def test_brand_favicon_and_mark_are_http_assets(self) -> None:
+        favicon = self.page.locator('link[rel="icon"]')
+        self.assertTrue(favicon.get_attribute("href").endswith("/assets/brand/favicon.svg"))
+        result = self.page.evaluate(
+            """
+            async () => {
+              const urls = [
+                document.querySelector('.brand-mark').src,
+                document.querySelector('link[rel="icon"]').href
+              ];
+              const responses = await Promise.all(urls.map((url) => fetch(url)));
+              return responses.map((response) => ({
+                ok: response.ok,
+                type: response.headers.get('content-type')
+              }));
+            }
+            """
+        )
+        self.assertTrue(all(item["ok"] for item in result))
+        self.assertTrue(all(item["type"].startswith("image/svg+xml") for item in result))
+
+    def test_brand_layout_at_supported_breakpoints(self) -> None:
+        for width, height in ((390, 844), (768, 1024), (1440, 1000)):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({"width": width, "height": height})
+                result = self.page.evaluate(
+                    """
+                    () => {
+                      const bounds = (selector) => {
+                        const element = document.querySelector(selector);
+                        const rect = element.getBoundingClientRect();
+                        return {
+                          visible: !!(rect.width && rect.height),
+                          left: rect.left,
+                          right: rect.right,
+                          top: rect.top,
+                          bottom: rect.bottom,
+                          width: rect.width,
+                          height: rect.height
+                        };
+                      };
+                      const career = bounds('[data-tab="career"]');
+                      const optimizer = bounds('[data-tab="optimizer"]');
+                      const login = bounds('.service-status');
+                      return {
+                        logo: bounds('.brand-mark'),
+                        brandName: bounds('.brand-text h1'),
+                        beta: bounds('.beta-badge'),
+                        login,
+                        career,
+                        optimizer,
+                        navOverflow: document.querySelector('#tab-nav').scrollWidth > document.querySelector('#tab-nav').clientWidth,
+                        pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                        withinViewport: [login, career, optimizer].every((rect) => rect.left >= 0 && rect.right <= window.innerWidth)
+                      };
+                    }
+                    """
+                )
+                self.assertTrue(result["logo"]["visible"])
+                self.assertTrue(result["brandName"]["visible"])
+                self.assertTrue(result["beta"]["visible"])
+                self.assertTrue(result["login"]["visible"])
+                self.assertTrue(result["career"]["visible"])
+                self.assertTrue(result["optimizer"]["visible"])
+                self.assertTrue(result["withinViewport"])
+                self.assertFalse(result["pageOverflow"])
+                if width == 390:
+                    self.assertFalse(result["navOverflow"])
+                    self.assertGreaterEqual(result["logo"]["width"], 32)
+                    self.assertLessEqual(result["logo"]["width"], 36)
+                    self.assertLess(result["career"]["bottom"], result["optimizer"]["top"])
+        self.page.set_viewport_size({"width": 1440, "height": 1000})
 
     def test_login_and_registration_panel_are_operable(self) -> None:
         self.page.locator("#auth-switch-btn").click()
@@ -114,13 +209,29 @@ class FrontendDeliveryBrowserTests(unittest.TestCase):
             () => ({
               overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
               noticeDirection: getComputedStyle(document.querySelector('#privacy-notice')).flexDirection,
-              headerColumns: getComputedStyle(document.querySelector('#header')).gridTemplateColumns
+              headerColumns: getComputedStyle(document.querySelector('#header')).gridTemplateColumns,
+              brandMark: (() => {
+                const mark = document.querySelector('.brand-mark').getBoundingClientRect();
+                const container = document.querySelector('.brand-logo').getBoundingClientRect();
+                return {
+                  width: mark.width,
+                  height: mark.height,
+                  centerDeltaX: Math.abs((mark.left + mark.width / 2) - (container.left + container.width / 2)),
+                  centerDeltaY: Math.abs((mark.top + mark.height / 2) - (container.top + container.height / 2)),
+                  withinHeader: mark.left >= document.querySelector('#header').getBoundingClientRect().left && mark.right <= document.querySelector('#header').getBoundingClientRect().right
+                };
+              })()
             })
             """
         )
         self.assertFalse(result["overflow"])
         self.assertEqual(result["noticeDirection"], "column")
         self.assertNotIn(" ", result["headerColumns"])
+        self.assertGreaterEqual(result["brandMark"]["width"], 30)
+        self.assertLessEqual(result["brandMark"]["width"], 36)
+        self.assertTrue(result["brandMark"]["withinHeader"])
+        self.assertLessEqual(result["brandMark"]["centerDeltaX"], 1)
+        self.assertLessEqual(result["brandMark"]["centerDeltaY"], 1)
         self.page.set_viewport_size({"width": 1440, "height": 1000})
 
 

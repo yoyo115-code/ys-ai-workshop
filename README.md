@@ -1,10 +1,16 @@
 # Y's AI Workshop
 
+![Y's AI Workshop logo](frontend/assets/brand/logo-lockup.svg)
+
 > AI-powered career and productivity workspace
 
 Y's AI Workshop 是一个以求职材料为核心的 AI 工作台。用户可以保存简历与岗位 JD，获得引用原文证据的匹配分析，逐条审阅简历建议，保存不可变版本，并从确认内容生成 DOCX/PDF。五个原型 AI Labs 仍保留在代码中，但 Production Private Beta 默认关闭。
 
 当前版本是 **Deployable Private Beta**：应用具备 PostgreSQL、Cloudflare R2/S3-compatible 私有对象存储、邀请制注册、数据删除、日额度、Secure Cookie、Render Blueprint、健康检查和 CI 能力。仓库不会自动代表已经上线，当前没有公开 URL 或真实用户研究结果。
+
+## Brand Identity
+
+几何化的 **Y** 代表项目品牌，上扬的 **Check** 代表岗位匹配、简历优化和可交付结果；蓝紫色表达可信、智能与职业成长。使用规范见 [Brand Guidelines](docs/BRAND_GUIDELINES.md)。
 
 ## 已实现功能
 

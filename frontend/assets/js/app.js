@@ -354,8 +354,9 @@ async function loadPublicConfiguration() {
       switchButton.textContent = "使用邀请码注册";
     }
   } catch {
-    document.getElementById("auth-message").textContent =
-      "服务配置暂不可用，请确认后端已启动且通过就绪检查。";
+    document.getElementById("auth-message").textContent = API_CONFIG.isFilePreview
+      ? "当前为界面预览；请通过 http://127.0.0.1:8000 使用登录和完整功能。"
+      : "公开配置暂未加载，请稍后重试。";
   }
 }
 
