@@ -147,13 +147,17 @@ class FrontendDeliveryTests(unittest.TestCase):
                 for element in root.iter():
                     self.assertNotIn(
                         element.tag.rsplit("}", 1)[-1].lower(),
-                        {"script", "foreignobject"},
+                        {"script", "foreignobject", "image"},
                     )
                     for attribute, value in element.attrib.items():
                         if attribute.rsplit("}", 1)[-1] == "href":
                             self.assertTrue(value.startswith("#"), value)
                         for resource in value.split("url(")[1:]:
                             self.assertTrue(resource.lstrip().startswith("#"), value)
+        mark = ET.parse(brand_directory / "logo-mark.svg").getroot()
+        favicon = ET.parse(brand_directory / "favicon.svg").getroot()
+        self.assertEqual(sum(node.tag.rsplit("}", 1)[-1] == "path" for node in mark.iter()), 3)
+        self.assertEqual(sum(node.tag.rsplit("}", 1)[-1] == "path" for node in favicon.iter()), 3)
 
     def test_brand_references_replace_the_legacy_star(self) -> None:
         self.assertEqual(self.parser.images, ["./assets/brand/logo-mark.svg"])

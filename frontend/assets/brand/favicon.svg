@@ -7,6 +7,9 @@
     </linearGradient>
   </defs>
   <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#ys-favicon-gradient)" />
-  <path d="M16 17L32 34V50" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M29 23L38 35L52 16" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" />
+  <g transform="translate(10.5 10.5) scale(0.67)">
+    <path d="M4 8.8H20.1C21.3 8.8 22.2 9.4 22.9 10.4L38.2 30.4L28.8 41.6L4 8.8Z" fill="#FFFFFF" />
+    <path d="M38.1 33.5L40.8 36.8V54.8C40.8 58 38.2 60.2 35 60.2H27.2V48.8C27.2 46.8 27.8 45.1 29.1 43.5L38.1 33.5Z" fill="#FFFFFF" />
+    <path d="M36.2 19.2L42.3 30.2L60 5.1" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
 </svg>

@@ -6,7 +6,7 @@ All notable changes to Y's AI Workshop are documented in this file.
 
 ### Changed
 
-- Replaced the generic Hero star with an original geometric Y + Check brand mark.
+- Replaced the generic Hero star with an accurately traced asymmetric Y + Check brand mark.
 - Added self-contained SVG mark, lockup and favicon assets with responsive browser validation.
 
 ## [v0.5.0] - 2026-07-31
