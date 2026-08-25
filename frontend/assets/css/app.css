@@ -161,22 +161,23 @@ button {
 }
 
 .brand-logo {
-  width: 62px;
-  height: 62px;
+  width: 68px;
+  height: 68px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 16px 32px rgba(24, 32, 51, 0.18);
   backdrop-filter: blur(12px);
 }
 
-.brand-logo svg {
-  width: 32px;
-  height: 32px;
+.brand-logo .brand-mark {
+  width: 48px;
+  height: 48px;
   display: block;
+  object-fit: contain;
 }
 
 .brand-kicker {
@@ -1824,14 +1825,18 @@ textarea:focus {
   }
 
   #tab-nav {
-    flex-direction: row;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
     padding: 8px;
-    scrollbar-width: thin;
+  }
+
+  #tab-nav .nav-section-label {
+    grid-column: 1 / -1;
   }
 
   .tab-btn {
-    flex: 0 0 178px;
+    min-width: 0;
   }
 }
 
@@ -1848,18 +1853,105 @@ textarea:focus {
   }
 
   #header {
+    padding: 18px 16px;
+    gap: 16px;
     border-radius: 17px;
   }
 
   .brand-area {
-    flex-direction: column;
-    gap: 14px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
   }
 
   .brand-logo {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  .brand-logo .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-text {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 6px;
+    align-items: center;
+  }
+
+  .brand-text h1 {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    font-size: clamp(18px, 5vw, 21px);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .brand-kicker {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    line-height: 1;
+  }
+
+  .brand-kicker-name {
+    display: none;
+  }
+
+  .brand-kicker .beta-badge {
+    margin-left: 0;
+    padding: 3px 6px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .brand-text p {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+    margin-top: 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .service-status {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .auth-panel {
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .auth-fields input {
+    padding: 9px 10px;
+  }
+
+  .workspace-shell {
+    margin-top: 16px;
+  }
+
+  #tab-nav {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-x: visible;
+    padding: 8px;
+  }
+
+  .tab-btn {
+    width: 100%;
+    min-width: 0;
+    flex: 0 1 auto;
   }
 
   .panel-stack {

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 80" fill="none">
+  <title>Y's AI Workshop</title>
+  <defs>
+    <linearGradient id="ys-lockup-y-gradient" x1="4" y1="9.5" x2="39.8" y2="60.2" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB" />
+      <stop offset="1" stop-color="#6366F1" />
+    </linearGradient>
+    <linearGradient id="ys-lockup-check-gradient" x1="35.2" y1="19.2" x2="59.7" y2="5.1" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1" />
+      <stop offset="1" stop-color="#8B5CF6" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(8 8)">
+    <path d="M4 8.8H20.1C21.3 8.8 22.2 9.4 22.9 10.4L38.2 30.4L28.8 41.6L4 8.8Z" fill="url(#ys-lockup-y-gradient)" />
+    <path d="M38.1 33.5L40.8 36.8V54.8C40.8 58 38.2 60.2 35 60.2H27.2V48.8C27.2 46.8 27.8 45.1 29.1 43.5L38.1 33.5Z" fill="url(#ys-lockup-y-gradient)" />
+    <path d="M36.2 19.2L42.3 30.2L60 5.1" stroke="url(#ys-lockup-check-gradient)" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <text x="86" y="51" fill="#15194F" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700" letter-spacing="-0.7">
+    <tspan>Y's </tspan><tspan fill="#6366F1">AI</tspan><tspan> Workshop</tspan>
+  </text>
+</svg>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Y's AI Workshop — an evidence-grounded career workspace for job matching, resume optimization, versioning, and export.">
+  <meta name="theme-color" content="#ffffff">
+  <meta property="og:title" content="Y's AI Workshop — Product Case Study">
+  <meta property="og:description" content="From job-description matching to evidence-grounded resume optimization and job-ready export.">
+  <meta property="og:type" content="website">
+  <title>Y's AI Workshop — AI Career Workspace</title>
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/portfolio.css">
+  <script src="assets/js/portfolio.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-header>
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="Y's AI Workshop home">
+        <img src="assets/images/logo-lockup.svg" width="224" height="52" alt="Y's AI Workshop">
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+        <span></span><span></span><span></span><span class="sr-only">Open navigation</span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation" data-nav>
+        <a href="#workflow">Workflow</a>
+        <a href="#features">Features</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#engineering">Engineering</a>
+        <a class="nav-github" href="https://github.com/yoyo115-code/ys-ai-workshop" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow"><span></span> Product case study · Private beta</div>
+          <h1>Y's AI Workshop</h1>
+          <p class="hero-kicker">AI-powered career workspace</p>
+          <p class="hero-summary">From job-description matching to evidence-grounded resume optimization and job-ready export.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#architecture">View Architecture</a>
+            <a class="button button-secondary" href="https://github.com/yoyo115-code/ys-ai-workshop" target="_blank" rel="noreferrer">View GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+          <dl class="hero-facts" aria-label="Project summary">
+            <div><dt>Product</dt><dd>Career AI</dd></div>
+            <div><dt>Stage</dt><dd>Deployable beta</dd></div>
+            <div><dt>Focus</dt><dd>Trust &amp; delivery</dd></div>
+          </dl>
+        </div>
+        <div class="hero-visual" aria-label="Y's AI Workshop product overview">
+          <div class="visual-window">
+            <div class="window-bar"><span></span><span></span><span></span><b>Career Match</b></div>
+            <div class="visual-body">
+              <div class="match-score">
+                <span>Evidence coverage</span>
+                <strong>82%</strong>
+                <div class="score-track"><i></i></div>
+              </div>
+              <div class="signal-list">
+                <div><span class="signal signal-covered">✓</span><p><b>Covered</b><small>Python services · API design</small></p></div>
+                <div><span class="signal signal-partial">↗</span><p><b>Partial</b><small>Production observability</small></p></div>
+                <div><span class="signal signal-review">!</span><p><b>Needs evidence</b><small>Team leadership claim</small></p></div>
+              </div>
+              <div class="guardrail-note"><span>◆</span> Suggestions must remain grounded in source evidence.</div>
+            </div>
+          </div>
+          <div class="hero-mark"><img src="assets/images/logo-mark.svg" alt="" width="52" height="52"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section problem-section" id="problem">
+      <div class="container split-heading">
+        <div><p class="section-label">01 · Product problem</p><h2>Resume tailoring is repetitive. Trust is the harder problem.</h2></div>
+        <div class="problem-copy">
+          <p>Job seekers repeatedly rewrite resumes for different roles, but generic AI tools often produce unsupported claims or opaque recommendations.</p>
+          <p>Y's AI Workshop turns that open-ended prompt into a reviewable workflow: every recommendation is tied back to the resume and job description, and the user stays in control of every change.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section workflow-section" id="workflow">
+      <div class="container">
+        <div class="section-heading compact"><p class="section-label">02 · Product workflow</p><h2>One traceable path from input to application-ready files.</h2></div>
+        <ol class="workflow" aria-label="Product workflow">
+          <li><span>01</span><b>Resume</b><small>PDF · DOCX · Text</small></li>
+          <li><span>02</span><b>Job Description</b><small>Role requirements</small></li>
+          <li><span>03</span><b>Evidence Match</b><small>Grounded analysis</small></li>
+          <li><span>04</span><b>Suggestions</b><small>Risk-aware edits</small></li>
+          <li><span>05</span><b>Review</b><small>Accept · Reject · Edit</small></li>
+          <li><span>06</span><b>Version History</b><small>Immutable snapshots</small></li>
+          <li><span>07</span><b>Export</b><small>DOCX · PDF</small></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-heading"><p class="section-label">03 · Core features</p><h2>Designed around decisions, not one-shot generation.</h2><p>Each stage makes the AI's role visible and keeps irreversible choices with the user.</p></div>
+        <div class="feature-grid">
+          <article class="feature-card feature-card-large">
+            <span class="feature-number">01</span><div class="feature-icon">◎</div>
+            <h3>Career Match</h3><p>Compare a resume with a target role using structured requirements, explicit limitations, and verbatim supporting evidence.</p>
+            <ul><li>PDF, DOCX, or text input</li><li>Covered, partial, missing, and uncertain signals</li><li>Saved application history</li></ul>
+          </article>
+          <article class="feature-card feature-card-large">
+            <span class="feature-number">02</span><div class="feature-icon">✦</div>
+            <h3>Resume Optimizer</h3><p>Review suggestions one by one. New facts and numbers are flagged as high risk instead of being silently written into the resume.</p>
+            <ul><li>Accept, reject, edit, regenerate, undo</li><li>Resume and JD evidence validation</li><li>User confirmation for high-risk changes</li></ul>
+          </article>
+          <article class="feature-card"><span class="feature-number">03</span><div class="feature-icon">⑂</div><h3>Resume Versioning</h3><p>Append-only snapshots, version diff, and restore-as-new keep every accepted change traceable.</p></article>
+          <article class="feature-card"><span class="feature-number">04</span><div class="feature-icon">⇩</div><h3>Resume Export</h3><p>Deterministic DOCX/PDF generation with Professional and Minimal ATS templates.</p></article>
+          <article class="feature-card feature-privacy"><span class="feature-number">05</span><div class="feature-icon">◇</div><h3>Privacy &amp; Guardrails</h3><p>Private storage boundaries, short-lived downloads, usage limits, input caps, and deletion controls support a safer beta.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section screenshots-section" id="screenshots">
+      <div class="container">
+        <div class="section-heading"><p class="section-label">04 · Product screens</p><h2>The working product, shown with synthetic data.</h2><p>Captured from the current application in a real browser. No personal information, credentials, or live AI calls are included.</p></div>
+        <div class="screenshot-grid">
+          <figure class="screenshot-card screenshot-wide"><div class="screenshot-frame"><img src="assets/images/career-match.jpg" alt="Career Match input screen with synthetic role data" loading="lazy" width="1440" height="960"></div><figcaption><span>01</span><div><b>Career Match</b><small>Resume and job-description intake</small></div></figcaption></figure>
+          <figure class="screenshot-card"><div class="screenshot-frame"><img src="assets/images/match-result.jpg" alt="Evidence-grounded match result screen using synthetic data" loading="lazy" width="1440" height="960"></div><figcaption><span>02</span><div><b>Match Result</b><small>Evidence, gaps, and limitations</small></div></figcaption></figure>
+          <figure class="screenshot-card"><div class="screenshot-frame"><img src="assets/images/resume-optimizer.jpg" alt="Resume Optimizer decision workflow with synthetic suggestions" loading="lazy" width="1440" height="960"></div><figcaption><span>03</span><div><b>Resume Optimizer</b><small>Human review and immutable versions</small></div></figcaption></figure>
+          <figure class="screenshot-card screenshot-wide"><div class="screenshot-frame"><img src="assets/images/export-workflow.jpg" alt="Resume export workflow showing DOCX and PDF options" loading="lazy" width="1440" height="960"></div><figcaption><span>04</span><div><b>Export Workflow</b><small>Structured preview and delivery history</small></div></figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section architecture-section" id="architecture">
+      <div class="container">
+        <div class="section-heading light"><p class="section-label">05 · Architecture</p><h2>A modular monolith with explicit trust boundaries.</h2><p>The HTTP, business, model, persistence, and storage responsibilities stay separate without premature microservices.</p></div>
+        <div class="architecture-flow" role="img" aria-label="Frontend to FastAPI to service layer, then LLM provider, repository, database, and storage">
+          <div class="arch-node"><small>Client</small><b>Frontend</b><span>HTML · CSS · JS</span></div><i>→</i>
+          <div class="arch-node"><small>HTTP</small><b>FastAPI</b><span>Auth · Schemas · Routes</span></div><i>→</i>
+          <div class="arch-node arch-primary"><small>Domain</small><b>Service Layer</b><span>Career · Resume · Export</span></div><i>→</i>
+          <div class="arch-branches">
+            <div class="arch-node"><small>Model</small><b>LLM Provider</b><span>Validated output</span></div>
+            <div class="arch-node"><small>Data</small><b>Repository</b><span>SQLAlchemy adapter</span></div>
+            <div class="arch-node"><small>Persistence</small><b>SQLite / PostgreSQL</b><span>Local / Production</span></div>
+            <div class="arch-node"><small>Objects</small><b>Local / S3</b><span>Private export storage</span></div>
+          </div>
+        </div>
+        <div class="architecture-notes">
+          <p><b>Portable by design.</b> SQLite supports local development; Alembic and PostgreSQL support production migration without rewriting the repository layer.</p>
+          <p><b>Deterministic delivery.</b> Export rendering does not call an LLM. Confirmed content becomes a traceable DOCX/PDF artifact through ordinary code.</p>
+          <p><b>Provider boundaries.</b> Model responses pass strict schemas, evidence checks, and risk detection before they can reach a product decision.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="engineering">
+      <div class="container engineering-layout">
+        <div class="section-heading sticky-heading"><p class="section-label">06 · Engineering highlights</p><h2>Production-minded foundations behind the product surface.</h2><p>Not a claim of full production scale—a deployable private-beta baseline with tested failure boundaries.</p><div class="test-stat"><strong>147</strong><span>automated backend tests<br><small>verified from the current repository</small></span></div></div>
+        <ul class="highlight-list">
+          <li><span>01</span><div><b>FastAPI modular backend</b><small>Routers, Pydantic contracts, services, repositories, and explicit dependency assembly.</small></div></li>
+          <li><span>02</span><div><b>SQLAlchemy / Alembic production migration support</b><small>SQLite locally, PostgreSQL in production, with ordered schema upgrades.</small></div></li>
+          <li><span>03</span><div><b>Evidence-grounded LLM validation</b><small>Schema validation, source-text checks, and deterministic claim-risk detection.</small></div></li>
+          <li><span>04</span><div><b>Prompt injection defenses</b><small>User documents are clearly delimited as untrusted data inside versioned prompts.</small></div></li>
+          <li><span>05</span><div><b>Immutable resume versioning</b><small>Accepted changes and restores append snapshots instead of rewriting history.</small></div></li>
+          <li><span>06</span><div><b>Secure DOCX/PDF export</b><small>Confirmed data, safe filenames, output hashes, retention, and authenticated download.</small></div></li>
+          <li><span>07</span><div><b>Path traversal protection</b><small>User-visible filenames never become physical storage paths.</small></div></li>
+          <li><span>08</span><div><b>Private-beta controls</b><small>Hashed invitations, daily usage guardrails, input caps, and Secure Cookie support.</small></div></li>
+          <li><span>09</span><div><b>Docker / CI delivery</b><small>Non-root container, migration checks, regression suites, and GitHub Actions.</small></div></li>
+          <li><span>10</span><div><b>Playwright browser regression</b><small>Navigation, assets, private-beta UI, console health, and responsive delivery checks.</small></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section contribution-section" id="contribution">
+      <div class="container contribution-grid">
+        <div><p class="section-label">07 · My contribution</p><h2>Team prototype origin, independently rebuilt product direction.</h2></div>
+        <div class="contribution-card">
+          <p>The original project began as the Group B Week 1 Nova AI intelligent workbench team prototype.</p>
+          <p>In this personal repository, I independently maintain the subsequent product repositioning, architecture refactor, Career Match, Resume Optimizer, versioning, export, production-readiness work, automated testing, documentation, and brand identity.</p>
+          <p class="origin-note">This distinction follows the repository's <a href="https://github.com/yoyo115-code/ys-ai-workshop/blob/main/PROJECT_ORIGIN.md" target="_blank" rel="noreferrer">PROJECT_ORIGIN.md <span aria-hidden="true">↗</span></a>; it does not present the original team prototype as solo work.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section releases-section" id="releases">
+      <div class="container">
+        <div class="section-heading compact"><p class="section-label">08 · Releases</p><h2>From prototype to deployable private beta.</h2></div>
+        <ol class="release-track">
+          <li><span></span><small>v0.1-sanitized-prototype</small><b>Prototype</b></li>
+          <li><span></span><small>v0.2.0</small><b>Career Match</b></li>
+          <li><span></span><small>v0.3.0</small><b>Optimizer &amp; Versioning</b></li>
+          <li><span></span><small>v0.4.0</small><b>Resume Export</b></li>
+          <li class="release-current"><span></span><small>v0.5.0</small><b>Deployable Private Beta</b></li>
+        </ol>
+        <p class="release-note">Brand identity refinement exists after v0.5.0 on the current development history; no v0.5.1 tag is claimed here.</p>
+      </div>
+    </section>
+
+    <section class="section stack-section" id="stack">
+      <div class="container stack-layout">
+        <div><p class="section-label">09 · Tech stack</p><h2>Pragmatic tools for a traceable AI workflow.</h2></div>
+        <ul class="stack-list" aria-label="Technology stack">
+          <li>Python</li><li>FastAPI</li><li>Pydantic</li><li>SQLAlchemy</li><li>Alembic</li><li>SQLite</li><li>PostgreSQL</li><li>DeepSeek</li><li>Anthropic integration</li><li>python-docx</li><li>ReportLab</li><li>HTML / CSS / JavaScript</li><li>Playwright</li><li>Docker</li><li>GitHub Actions</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-top">
+      <div><img src="assets/images/logo-lockup.svg" width="204" height="48" alt="Y's AI Workshop"><p>AI-powered career workspace</p></div>
+      <div class="footer-links"><a href="https://github.com/yoyo115-code/ys-ai-workshop" target="_blank" rel="noreferrer">GitHub repository ↗</a><a href="https://github.com/yoyo115-code/ys-ai-workshop/tree/main/docs" target="_blank" rel="noreferrer">Project documentation ↗</a></div>
+    </div>
+    <div class="container footer-bottom"><span>© <span data-year></span> Y's AI Workshop</span><span>Version v0.5.0 · Portfolio case study</span></div>
+  </footer>
+</body>
+</html>
