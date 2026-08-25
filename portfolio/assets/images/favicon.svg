@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="ys-favicon-gradient" x1="8" y1="7" x2="57" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB" />
+      <stop offset="0.55" stop-color="#6366F1" />
+      <stop offset="1" stop-color="#8B5CF6" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#ys-favicon-gradient)" />
+  <g transform="translate(10.5 10.5) scale(0.67)">
+    <path d="M4 8.8H20.1C21.3 8.8 22.2 9.4 22.9 10.4L38.2 30.4L28.8 41.6L4 8.8Z" fill="#FFFFFF" />
+    <path d="M38.1 33.5L40.8 36.8V54.8C40.8 58 38.2 60.2 35 60.2H27.2V48.8C27.2 46.8 27.8 45.1 29.1 43.5L38.1 33.5Z" fill="#FFFFFF" />
+    <path d="M36.2 19.2L42.3 30.2L60 5.1" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

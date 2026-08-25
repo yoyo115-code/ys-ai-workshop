@@ -2,6 +2,8 @@
 
 ![Y's AI Workshop logo](frontend/assets/brand/logo-lockup.svg)
 
+**Project Website:** pending GitHub Pages deployment
+
 > AI-powered career and productivity workspace
 
 Y's AI Workshop 是一个以求职材料为核心的 AI 工作台。用户可以保存简历与岗位 JD，获得引用原文证据的匹配分析，逐条审阅简历建议，保存不可变版本，并从确认内容生成 DOCX/PDF。五个原型 AI Labs 仍保留在代码中，但 Production Private Beta 默认关闭。
@@ -188,7 +190,7 @@ node --check frontend/assets/js/config.js
 node --check frontend/assets/js/app.js
 ```
 
-当前后端发现 145 项：本地 144 通过，1 项需要 PostgreSQL service 的 integration test 如实跳过；GitHub Actions 使用 PostgreSQL 17 service 先执行 Alembic migration，再在完整套件中运行该用例。测试使用合成数据和 mock LLM，不调用真实模型。
+当前后端发现 147 项：本地 146 通过，1 项需要 PostgreSQL service 的 integration test 如实跳过；GitHub Actions 使用 PostgreSQL 17 service 先执行 Alembic migration，再在完整套件中运行该用例。测试使用合成数据和 mock LLM，不调用真实模型。
 
 浏览器测试覆盖 Private Beta 标识、邀请码表单、隐私/保留提示、核心导航、静态资源、控制台错误和 390px 响应式布局。运行方式见 [Testing](docs/TESTING.md)。
 
