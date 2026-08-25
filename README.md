@@ -2,7 +2,8 @@
 
 ![Y's AI Workshop logo](frontend/assets/brand/logo-lockup.svg)
 
-**Project Website:** pending GitHub Pages deployment
+Project Website:
+https://yoyo115-code.github.io/ys-ai-workshop/
 
 > AI-powered career and productivity workspace
 
